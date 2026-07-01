@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: Panel + ESP (Rol erken tespit) + Şerif Aim (anlık kilit) + Zıplama Butonu
+-- // Delta Mobil – MM2 Final: ESP + Şerif Aim + Katil (Speed & Jump) + Yerdeki Silah
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,6 +20,7 @@ local cfg = {
 }
 
 local jumpButton = nil
+local gunESP = {}  -- yerdeki silah çizimleri
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -29,54 +30,73 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ (Erken algılama için iyileştirildi)
+-- ROL TESPİTİ (Anlık güncelleme için cache ve event)
 -- ==============================================
-local function getPlayerRole(plr)
-    local char = plr.Character
+local roleCache = {}
 
-    -- 1. Önce Player üzerindeki Role değerini kontrol et (en hızlı)
+local function updateRoleCache(plr)
+    local role = "Innocent"
+    -- 1. Direkt StringValue
     local roleObj = plr:FindFirstChild("Role")
     if roleObj and roleObj:IsA("StringValue") then
-        local roleName = roleObj.Value
-        if roleName == "Murderer" or roleName == "Killer" then return "Murderer" end
-        if roleName == "Sheriff" or roleName == "Hero" then return "Sheriff" end
-        if roleName == "Innocent" or roleName == "Civilian" then return "Innocent" end
+        local r = roleObj.Value
+        if r == "Murderer" or r == "Killer" then role = "Murderer"
+        elseif r == "Sheriff" or r == "Hero" then role = "Sheriff"
+        elseif r == "Innocent" or r == "Civilian" then role = "Innocent"
+        end
     end
-
-    -- 2. Karakter üzerinde belirteç var mı? (bazı MM2 versiyonları)
+    -- 2. Backpack içeriği
+    local backpack = plr:FindFirstChild("Backpack")
+    if backpack then
+        if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
+            role = "Murderer"
+        elseif backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
+            role = "Sheriff"
+        end
+    end
+    -- 3. Karakter içindeki araçlar
+    local char = plr.Character
     if char then
-        if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then
-            return "Murderer"
-        end
-        if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then
-            return "Sheriff"
-        end
+        if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then role = "Murderer" end
+        if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then role = "Sheriff" end
     end
+    roleCache[plr] = role
+end
 
-    -- 3. Backpack kontrolü (silahlar yüklendiğinde)
-    local backpack = plr:FindFirstChild("Backpack") or plr
-    if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
-        return "Murderer"
-    end
-    if backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
-        return "Sheriff"
-    end
-
-    -- 4. Karakter içindeki araçlar (eldeki)
-    if char then
-        if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then
-            return "Murderer"
+-- Her oyuncu için event bağla
+local function watchPlayer(plr)
+    plr.ChildAdded:Connect(function(child)
+        if child.Name == "Role" and child:IsA("StringValue") then
+            updateRoleCache(plr)
+        elseif child.Name == "Backpack" then
+            child.ChildAdded:Connect(function(bpChild)
+                if bpChild.Name == "Knife" or bpChild.Name == "Murderer" or bpChild.Name == "Gun" or bpChild.Name == "Sheriff" then
+                    updateRoleCache(plr)
+                end
+            end)
         end
-        if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then
-            return "Sheriff"
-        end
+    end)
+    if plr:FindFirstChild("Backpack") then
+        plr.Backpack.ChildAdded:Connect(function(bpChild)
+            if bpChild.Name == "Knife" or bpChild.Name == "Murderer" or bpChild.Name == "Gun" or bpChild.Name == "Sheriff" then
+                updateRoleCache(plr)
+            end
+        end)
     end
+    updateRoleCache(plr) -- başlangıçta bir kere çek
+end
 
-    return "Innocent"
+Players.PlayerAdded:Connect(function(plr)
+    watchPlayer(plr)
+    plr.CharacterAdded:Connect(function() updateRoleCache(plr) end)
+end)
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    watchPlayer(plr)
 end
 
 -- ==============================================
--- ESP
+-- ESP SİSTEMİ
 -- ==============================================
 local ESPData = {}
 
@@ -104,8 +124,7 @@ local function removeESP(plr)
 end
 
 local function isInFront(pos)
-    local camPos = Camera.CFrame.Position
-    return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
+    return Camera.CFrame.LookVector:Dot((pos - Camera.CFrame.Position).Unit) > 0
 end
 
 local function getBox(character)
@@ -133,20 +152,20 @@ local function updateESP()
     local my = LocalPlayer.Character
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
-        local role = getPlayerRole(plr)
-        if cfg.team_check and role == getPlayerRole(LocalPlayer) then
+        local role = roleCache[plr] or "Innocent"
+        if cfg.team_check and role == (roleCache[LocalPlayer] or "Innocent") then
             if ESPData[plr] then removeESP(plr) end
             continue
         end
         local char = plr.Character
         if not char then
-            if ESPData[plr] then removeESP(plr) end
+            if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hrp or not hum or hum.Health <= 0 then
-            if ESPData[plr] then removeESP(plr) end
+            if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
 
@@ -186,6 +205,45 @@ local function updateESP()
             d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = box.top - Vector2.new(0, 15)
         end
     end
+
+    -- Yerdeki silah ESP'si
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Tool") and obj.Name == "Gun" then
+            local handle = obj:FindFirstChild("Handle")
+            if handle then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(handle.Position)
+                if onScreen then
+                    if not gunESP[obj] then
+                        gunESP[obj] = {
+                            box = newDrawing("Square"),
+                            text = newDrawing("Text")
+                        }
+                        local g = gunESP[obj]
+                        if g.box then g.box.Thickness = 2 g.box.Filled = false end
+                        if g.text then g.text.Size = 11 g.text.Center = true g.text.Outline = true g.text.Color = Color3.new(1,1,1) end
+                    end
+                    local g = gunESP[obj]
+                    if g.box then
+                        g.box.Visible = true
+                        g.box.Position = Vector2.new(screenPos.X - 10, screenPos.Y - 10)
+                        g.box.Size = Vector2.new(20, 20)
+                        g.box.Color = Color3.new(1, 0.5, 0) -- turuncu
+                    end
+                    if g.text then
+                        g.text.Visible = true
+                        g.text.Text = "SİLAH"
+                        g.text.Position = Vector2.new(screenPos.X, screenPos.Y - 20)
+                    end
+                else
+                    if gunESP[obj] then
+                        local g = gunESP[obj]
+                        if g.box then g.box.Visible = false end
+                        if g.text then g.text.Visible = false end
+                    end
+                end
+            end
+        end
+    end
 end
 
 -- ==============================================
@@ -206,13 +264,12 @@ local function getClosestMurderer()
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
     local myPos = myChar.HumanoidRootPart.Position
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer or getPlayerRole(plr) ~= "Murderer" then continue end
+        if plr == LocalPlayer or roleCache[plr] ~= "Murderer" then continue end
         local char = plr.Character
         if not char then continue end
-        local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
-        if not (head or hrp) then continue end
-        local targetPos = hrp and hrp.Position or head.Position
-        local dist = (myPos - targetPos).Magnitude
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+        local dist = (myPos - hrp.Position).Magnitude
         if dist < bestDist then bestDist = dist best = plr end
     end
     return best
@@ -223,29 +280,21 @@ local function aimAt(targetPlayer)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-
-    -- Hedef noktası: Göğüs hizası (RootPart + 1)
     local targetPos = hrp.Position + Vector3.new(0, 1, 0)
     local camPos = Camera.CFrame.Position
-
-    -- Anlık kamera kilidi (yumuşatma yok, direkt bak)
     Camera.CFrame = CFrame.lookAt(camPos, targetPos)
-
-    -- Karakteri anlık yatay olarak döndür
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
         local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
-        pcall(function()
-            root.CFrame = CFrame.lookAt(root.Position, flatTarget)
-        end)
+        pcall(function() root.CFrame = CFrame.lookAt(root.Position, flatTarget) end)
     end
 end
 
 local function updateAimbot()
-    if not cfg.aim_on or getPlayerRole(LocalPlayer) ~= "Sheriff" or not hasGun() then return end
+    if not cfg.aim_on or roleCache[LocalPlayer] ~= "Sheriff" or not hasGun() then return end
     local target = getClosestMurderer()
     if target then aimAt(target) end
 end
@@ -295,7 +344,7 @@ local function createJumpButton()
         end
     end)
 
-    btn.MouseButton1Click:Connect(function()
+    btn.Activated:Connect(function()
         if not cfg.jump_on then return end
         local char = LocalPlayer.Character
         if not char then return end
@@ -316,21 +365,29 @@ local function updateJumpButton()
 end
 
 -- ==============================================
--- PANEL
+-- PANEL (Activated ile tamamen mobil uyumlu)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
+
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0,40,0,40) openBtn.Position = UDim2.new(1,-50,0,10)
-    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) openBtn.Text = "⚙"
-    openBtn.TextColor3 = Color3.new(1,1,1) openBtn.Font = Enum.Font.SourceSansBold openBtn.TextSize = 20
+    openBtn.Size = UDim2.new(0,40,0,40)
+    openBtn.Position = UDim2.new(1,-50,0,10)
+    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    openBtn.Text = "⚙"
+    openBtn.TextColor3 = Color3.new(1,1,1)
+    openBtn.Font = Enum.Font.SourceSansBold
+    openBtn.TextSize = 20
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0,280,0,200) panel.Position = UDim2.new(1,-290,0,60)
-    panel.BackgroundColor3 = Color3.fromRGB(25,25,25) panel.Visible = false
+    panel.Size = UDim2.new(0,280,0,200)
+    panel.Position = UDim2.new(1,-290,0,60)
+    panel.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
 
+    -- Sürükleme (panel başlığı olmadığı için tüm panel sürüklenir)
     local drag, dragStart, startPos = false, nil, nil
     panel.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -358,25 +415,36 @@ local function createPanel()
     content.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
     local currentPage = nil
-    local function showPage(p) if currentPage then currentPage.Visible = false end
-        if p then p.Visible = true currentPage = p end end
+    local function showPage(p)
+        if currentPage then currentPage.Visible = false end
+        if p then p.Visible = true currentPage = p end
+    end
+
     local function addCategory(name, y, page)
         local btn = Instance.new("TextButton", sidebar)
         btn.Size = UDim2.new(1,-6,0,32) btn.Position = UDim2.new(0,3,0,y)
         btn.BackgroundColor3 = Color3.fromRGB(60,60,60) btn.Text = name
         btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 13
-        btn.MouseButton1Click:Connect(function() showPage(page) end)
+        btn.Activated:Connect(function() showPage(page) end)
     end
+
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI") btn.TextColor3 = Color3.new(1,1,1)
+        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
+        btn.TextColor3 = Color3.new(1,1,1)
         btn.Font = Enum.Font.SourceSans btn.TextSize = 12
         local toggled = default
-        btn.MouseButton1Click:Connect(function()
-            toggled = not toggled btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
-            btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0) callback(toggled)
+        local debounce = false
+        btn.Activated:Connect(function()
+            if debounce then return end
+            debounce = true
+            toggled = not toggled
+            btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
+            btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+            callback(toggled)
+            task.delay(0.2, function() debounce = false end)
         end)
     end
 
@@ -386,15 +454,20 @@ local function createPanel()
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
 
-    -- Şerif Aim
+    -- Şerif Aim Sayfası
     local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
     addToggle(aimPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil (Speed + Jump)
+    -- Katil Sayfası (Speed + Jump)
     local killerPage = Instance.new("Frame", content) killerPage.Size = UDim2.new(1,0,1,0) killerPage.BackgroundTransparency = 1
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        if v then applySpeed() else if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end
+        if v then applySpeed() else
+            if LocalPlayer.Character then
+                local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if h then h.WalkSpeed = 16 end
+            end
+        end
     end, 5)
     addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v)
         cfg.jump_on = v
@@ -405,16 +478,18 @@ local function createPanel()
     addCategory("Katil", 79, killerPage)
     showPage(espPage)
 
-    openBtn.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
+    openBtn.Activated:Connect(function()
+        panel.Visible = not panel.Visible
+        if panel.Visible then
+            showPage(currentPage or espPage) -- panel açıldığında içeriği tazele
+        end
+    end)
 end
 
 -- ==============================================
 -- BAŞLATMA
 -- ==============================================
-Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() if ESPData[p] then removeESP(p) end end)
-end)
+Players.PlayerRemoving:Connect(function(p) removeESP(p) roleCache[p] = nil end)
 
 createPanel()
 createJumpButton()
@@ -426,4 +501,4 @@ RunService.RenderStepped:Connect(function()
     updateJumpButton()
 end)
 
-print("✅ MM2: ESP (roller erken algılanır) + Şerif Aim (anlık kilit) + Zıplama Butonu aktif!")
+print("✅ MM2 Final: Roller anında gözükür, panel sorunsuz, 
