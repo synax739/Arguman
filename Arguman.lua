@@ -1,83 +1,92 @@
--- // MM2 Remote Dedektörü
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+-- // MM2 Silah Remote Bulucu (Konsolsuz, GUI'de gösterir)
 
--- Tüm RemoteEvent ve RemoteFunction'ları tara
-local function scanRemotes(parent, depth)
-    if depth > 5 then return end
-    for _, child in ipairs(parent:GetChildren()) do
-        if child:IsA("RemoteEvent") then
-            print("🔵 RemoteEvent bulundu:", child:GetFullName())
-        elseif child:IsA("RemoteFunction") then
-            print("🟢 RemoteFunction bulundu:", child:GetFullName())
-        end
-        if #child:GetChildren() > 0 then
-            scanRemotes(child, depth + 1)
+local player = game.Players.LocalPlayer
+local char = player.Character
+
+-- Bilgi gösterme GUI'si
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "RemoteInfoGUI"
+screenGui.Parent = game.CoreGui or player:WaitForChild("PlayerGui")
+
+local infoFrame = Instance.new("Frame")
+infoFrame.Size = UDim2.new(0, 350, 0, 200)
+infoFrame.Position = UDim2.new(0.5, -175, 0.1, 0)
+infoFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+infoFrame.BackgroundTransparency = 0.5
+infoFrame.BorderSizePixel = 0
+infoFrame.Parent = screenGui
+
+local infoText = Instance.new("TextLabel")
+infoText.Size = UDim2.new(1, -10, 1, -10)
+infoText.Position = UDim2.new(0, 5, 0, 5)
+infoText.BackgroundTransparency = 1
+infoText.Text = "Silah aranıyor..."
+infoText.TextColor3 = Color3.new(1, 1, 1)
+infoText.Font = Enum.Font.SourceSansBold
+infoText.TextSize = 14
+infoText.TextWrapped = true
+infoText.Parent = infoFrame
+
+-- Kapat butonu
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 16
+closeBtn.Parent = infoFrame
+closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+
+-- Silahı bul ve Remote'ları listele
+local function findGunAndRemotes()
+    local tool = nil
+    local char = player.Character
+    if char then
+        for _, v in ipairs(char:GetChildren()) do
+            if v:IsA("Tool") then tool = v break end
         end
     end
-end
-
-print("========= MM2 REMOTE LİSTESİ =========")
-scanRemotes(workspace, 0)
-scanRemotes(ReplicatedStorage, 0)
-scanRemotes(LocalPlayer, 0)
-if LocalPlayer.Character then
-    scanRemotes(LocalPlayer.Character, 0)
-end
-print("========= LİSTE SONU =========")
-
--- Şimdi Remote'ları dinle (Hook)
-local function hookRemote(remote)
-    if remote:IsA("RemoteEvent") then
-        local oldFireServer = remote.FireServer
-        remote.FireServer = function(self, ...)
-            local args = {...}
-            print("🔥 ATEŞ TESPİT EDİLDİ!")
-            print("   Remote Adı:", remote.Name)
-            print("   Remote Tam Yolu:", remote:GetFullName())
-            print("   Argüman Sayısı:", #args)
-            for i, arg in ipairs(args) do
-                print("   Argüman " .. i .. ":", arg, "Tür:", typeof(arg))
+    if not tool then
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            for _, v in ipairs(backpack:GetChildren()) do
+                if v:IsA("Tool") then tool = v break end
             end
-            print("---")
-            return oldFireServer(self, ...)
         end
-    elseif remote:IsA("RemoteFunction") then
-        local oldInvoke = remote.OnClientInvoke
-        remote.OnClientInvoke = function(...)
-            local args = {...}
-            print("🔥 ATEŞ (Function) TESPİT EDİLDİ!")
-            print("   Remote Adı:", remote.Name)
-            print("   Remote Tam Yolu:", remote:GetFullName())
-            print("   Argüman Sayısı:", #args)
-            for i, arg in ipairs(args) do
-                print("   Argüman " .. i .. ":", arg, "Tür:", typeof(arg))
+    end
+
+    local message = ""
+    if not tool then
+        message = "Elinizde silah yok! Lütfen şerif silahını alın."
+    else
+        message = "✅ Silah: " .. tool.Name .. "\n\n📡 REMOTE'LAR:\n"
+        local remotesFound = false
+        for _, child in ipairs(tool:GetDescendants()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                message = message .. "🔹 " .. child.Name .. " (" .. child.ClassName .. ")\n"
+                message = message .. "    Yol: " .. child:GetFullName() .. "\n"
+                remotesFound = true
             end
-            print("---")
-            return oldInvoke(...)
         end
+        if not remotesFound then
+            message = message .. "Hiç Remote bulunamadı! (Silah farklı bir mekanizmaya sahip)"
+        end
+        message = message .. "\nBu bilgiyi kopyalayıp bana gönder."
     end
+    infoText.Text = message
 end
 
--- Tüm remote'ları hookla
-local function hookAll(parent, depth)
-    if depth > 5 then return end
-    for _, child in ipairs(parent:GetChildren()) do
-        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-            pcall(function() hookRemote(child) end)
-        end
-        if #child:GetChildren() > 0 then
-            hookAll(child, depth + 1)
-        end
-    end
-end
+-- Karakter değişimlerini takip et
+player.CharacterAdded:Connect(function()
+    findGunAndRemotes()
+end)
 
-hookAll(workspace, 0)
-hookAll(ReplicatedStorage, 0)
-hookAll(LocalPlayer, 0)
-if LocalPlayer.Character then
-    hookAll(LocalPlayer.Character, 0)
-end
+-- İlk çalıştırma
+findGunAndRemotes()
 
-print("✅ Tüm Remote'lar dinleniyor. Şimdi ateş et!")
+-- 3 saniyede bir güncelle (silahlar değişebilir)
+while wait(3) do
+    findGunAndRemotes()
+end
