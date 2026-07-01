@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: Panel + Zıplama Butonu (Sürüklenebilir)
+-- // Delta Mobil – MM2: Panel + ESP (Rol erken tespit) + Şerif Aim (anlık kilit) + Zıplama Butonu
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,16 +13,14 @@ local cfg = {
     esp_maxDist = 500,
     aim_on = false,
     aim_maxDist = 120,
-    aim_smoothBase = 2.0,
     speed_on = false,
     speed_value = 30,
     jump_on = false,
     team_check = false
 }
 
-local jumpButton = nil  -- zıplama butonu
+local jumpButton = nil
 
--- Rol renkleri
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
     Sheriff  = Color3.fromRGB(0, 120, 255),
@@ -31,31 +29,49 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- Rol Tespiti
+-- ROL TESPİTİ (Erken algılama için iyileştirildi)
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
-    if not char then return "Unknown" end
-    local backpack = plr:FindFirstChild("Backpack") or plr
-    if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
-        return "Murderer"
-    end
-    if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then
-        return "Murderer"
-    end
-    if backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
-        return "Sheriff"
-    end
-    if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then
-        return "Sheriff"
-    end
-    local roleObj = plr:FindFirstChild("Role") or plr:FindFirstChild("PlayerRole")
+
+    -- 1. Önce Player üzerindeki Role değerini kontrol et (en hızlı)
+    local roleObj = plr:FindFirstChild("Role")
     if roleObj and roleObj:IsA("StringValue") then
         local roleName = roleObj.Value
         if roleName == "Murderer" or roleName == "Killer" then return "Murderer" end
         if roleName == "Sheriff" or roleName == "Hero" then return "Sheriff" end
         if roleName == "Innocent" or roleName == "Civilian" then return "Innocent" end
     end
+
+    -- 2. Karakter üzerinde belirteç var mı? (bazı MM2 versiyonları)
+    if char then
+        if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then
+            return "Murderer"
+        end
+        if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then
+            return "Sheriff"
+        end
+    end
+
+    -- 3. Backpack kontrolü (silahlar yüklendiğinde)
+    local backpack = plr:FindFirstChild("Backpack") or plr
+    if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
+        return "Murderer"
+    end
+    if backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
+        return "Sheriff"
+    end
+
+    -- 4. Karakter içindeki araçlar (eldeki)
+    if char then
+        if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then
+            return "Murderer"
+        end
+        if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then
+            return "Sheriff"
+        end
+    end
+
     return "Innocent"
 end
 
@@ -173,7 +189,7 @@ local function updateESP()
 end
 
 -- ==============================================
--- ŞERİF AIMBOT
+-- ŞERİF AIMBOT (Anlık kilit, RootPart hedefli)
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
@@ -195,7 +211,7 @@ local function getClosestMurderer()
         if not char then continue end
         local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
         if not (head or hrp) then continue end
-        local targetPos = head and head.Position or hrp.Position
+        local targetPos = hrp and hrp.Position or head.Position
         local dist = (myPos - targetPos).Magnitude
         if dist < bestDist then bestDist = dist best = plr end
     end
@@ -205,19 +221,26 @@ end
 local function aimAt(targetPlayer)
     local char = targetPlayer.Character
     if not char then return end
-    local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
-    local targetPart = head or hrp
-    if not targetPart then return end
-    local targetPos = targetPart.Position
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- Hedef noktası: Göğüs hizası (RootPart + 1)
+    local targetPos = hrp.Position + Vector3.new(0, 1, 0)
     local camPos = Camera.CFrame.Position
-    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
+
+    -- Anlık kamera kilidi (yumuşatma yok, direkt bak)
+    Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+
+    -- Karakteri anlık yatay olarak döndür
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
         local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
-        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
+        pcall(function()
+            root.CFrame = CFrame.lookAt(root.Position, flatTarget)
+        end)
     end
 end
 
@@ -239,7 +262,7 @@ end
 LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
 
 -- ==============================================
--- SINIRSIZ ZIPLAMA (Sürüklenebilir Buton)
+-- ZIPLAMA BUTONU
 -- ==============================================
 local function createJumpButton()
     if jumpButton then jumpButton:Destroy() end
@@ -258,7 +281,6 @@ local function createJumpButton()
     btn.Visible = cfg.jump_on
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 
-    -- Sürükleme
     local drag, dragStart, startPos = false, nil, nil
     btn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -273,7 +295,6 @@ local function createJumpButton()
         end
     end)
 
-    -- Zıplama eylemi
     btn.MouseButton1Click:Connect(function()
         if not cfg.jump_on then return end
         local char = LocalPlayer.Character
@@ -290,7 +311,6 @@ local function createJumpButton()
     jumpButton = btn
 end
 
--- Butonu cfg.jump_on değiştiğinde kontrol etmek için RenderStepped içinde izleyelim
 local function updateJumpButton()
     if jumpButton then jumpButton.Visible = cfg.jump_on end
 end
@@ -378,8 +398,6 @@ local function createPanel()
     end, 5)
     addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v)
         cfg.jump_on = v
-        -- Buton görünürlüğünü güncelle
-        if jumpButton then jumpButton.Visible = v end
     end, 35)
 
     addCategory("ESP", 5, espPage)
@@ -408,4 +426,4 @@ RunService.RenderStepped:Connect(function()
     updateJumpButton()
 end)
 
-print("🔪 MM2: Zıplama Butonu aktif! Sınırsız Zıpla'yı aç, yeşil butona basarak zıpla.")
+print("✅ MM2: ESP (roller erken algılanır) + Şerif Aim (anlık kilit) + Zıplama Butonu aktif!")
