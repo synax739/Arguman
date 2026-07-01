@@ -19,7 +19,7 @@ local cfg = {
     speed_on = false,
     speed_value = 30,
     jump_on = false,
-    jump_power = 100,  -- yükseltildi
+    jump_power = 55,  -- yükseltildi
     team_check = false
 }
 
