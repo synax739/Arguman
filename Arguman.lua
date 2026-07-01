@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) [Dropped Gun yok]
+-- // Delta Mobil – MM2: ESP (oyuncu + yere düşen silah) + Şerif Aim + Katil (Speed & Jump)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,10 +16,12 @@ local cfg = {
     speed_on = false,
     speed_value = 30,
     jump_on = false,
+    dropped_gun_esp = true,
     team_check = false
 }
 
 local jumpButton = nil
+local droppedGunESP = {}
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -70,7 +72,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP (Oyuncu)
+-- ESP (Oyuncular + Yerdeki Silah)
 -- ==============================================
 local ESPData = {}
 
@@ -136,6 +138,7 @@ local function updateESP()
     local my = LocalPlayer.Character
     local myRole = getPlayerRole(LocalPlayer)
 
+    -- Oyuncu ESP'si
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         local role = getPlayerRole(plr)
@@ -194,6 +197,79 @@ local function updateESP()
         if d.role then
             d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = box.top - Vector2.new(0, 15)
         end
+    end
+
+    -- Yerdeki silah ESP'si
+    if cfg.dropped_gun_esp then
+        local guns = {}
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Tool") and obj.Name == "Gun" then
+                local handle = obj:FindFirstChild("Handle")
+                if handle then
+                    table.insert(guns, obj)
+                end
+            end
+        end
+
+        for _, gun in ipairs(guns) do
+            local handle = gun:FindFirstChild("Handle")
+            if handle then
+                local pos = handle.Position
+                if pos ~= pos then continue end
+                local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+                if onScreen then
+                    if not droppedGunESP[gun] then
+                        droppedGunESP[gun] = {
+                            box = newDrawing("Square"),
+                            text = newDrawing("Text")
+                        }
+                        if droppedGunESP[gun].box then
+                            droppedGunESP[gun].box.Thickness = 2
+                            droppedGunESP[gun].box.Filled = false
+                        end
+                        if droppedGunESP[gun].text then
+                            droppedGunESP[gun].text.Size = 14
+                            droppedGunESP[gun].text.Center = true
+                            droppedGunESP[gun].text.Outline = true
+                            droppedGunESP[gun].text.Color = Color3.new(1, 0.5, 0)
+                        end
+                    end
+                    local dg = droppedGunESP[gun]
+                    if dg.box then
+                        dg.box.Visible = true
+                        dg.box.Position = Vector2.new(screenPos.X - 15, screenPos.Y - 15)
+                        dg.box.Size = Vector2.new(30, 30)
+                        dg.box.Color = Color3.new(1, 0.5, 0)
+                    end
+                    if dg.text then
+                        dg.text.Visible = true
+                        dg.text.Text = "SİLAH"
+                        dg.text.Position = Vector2.new(screenPos.X, screenPos.Y - 25)
+                    end
+                else
+                    if droppedGunESP[gun] then
+                        if droppedGunESP[gun].box then droppedGunESP[gun].box.Visible = false end
+                        if droppedGunESP[gun].text then droppedGunESP[gun].text.Visible = false end
+                    end
+                end
+            end
+        end
+
+        -- Silinmiş silahları temizle
+        for gun, drawings in pairs(droppedGunESP) do
+            if not gun.Parent or not gun:FindFirstChild("Handle") then
+                if drawings.box then pcall(function() drawings.box:Remove() end) end
+                if drawings.text then pcall(function() drawings.text:Remove() end) end
+                droppedGunESP[gun] = nil
+            end
+        end
+    else
+        -- Dropped gun ESP kapalıysa hepsini sil
+        for gun, drawings in pairs(droppedGunESP) do
+            if drawings.box then pcall(function() drawings.box:Remove() end) end
+            if drawings.text then pcall(function() drawings.text:Remove() end) end
+        end
+        droppedGunESP = {}
     end
 end
 
@@ -415,40 +491,4 @@ local function createPanel()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
-
-    local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
-    addToggle(aimPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
-
-    local killerPage = Instance.new("Frame", content) killerPage.Size = UDim2.new(1,0,1,0) killerPage.BackgroundTransparency = 1
-    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
-        cfg.speed_on = v
-        if v then applySpeed() else pcall(function() if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end) end
-    end, 5)
-    addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v) cfg.jump_on = v end, 35)
-
-    addCategory("ESP", 5, espPage)
-    addCategory("Şerif Aim", 42, aimPage)
-    addCategory("Katil", 79, killerPage)
-    showPage(espPage)
-
-    openBtn.Activated:Connect(function()
-        panel.Visible = not panel.Visible
-    end)
-end
-
--- ==============================================
--- BAŞLATMA
--- ==============================================
-Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
-
-createPanel()
-createJumpButton()
-applySpeed()
-
-RunService.RenderStepped:Connect(function()
-    updateESP()
-    updateAimbot()
-    updateJumpButton()
-end)
-
-print("✅ MM2: ESP + Şerif Aim + Katil (Speed & Jump) başarıyla başladı!")
+    addToggle(espPage, "Dropped Gun ESP", cfg.dropped_gun_esp, function(v) cfg.dropped_gun_esp = v end, 
