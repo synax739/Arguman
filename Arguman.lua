@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP (oyuncu + yere düşen silah) + Şerif Aim + Katil (Speed & Jump)
+-- // Delta Mobil – MM2: ESP (oyuncu + Dropped Gun) + Şerif Aim + Katil (Speed & Jump)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -31,7 +31,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ
+-- ROL TESPİTİ (Her kare)
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -72,7 +72,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP (Oyuncular + Yerdeki Silah)
+-- ESP (Oyuncular + Yerdeki silah)
 -- ==============================================
 local ESPData = {}
 
@@ -199,23 +199,27 @@ local function updateESP()
         end
     end
 
-    -- Yerdeki silah ESP'si
+    -- ========== YERE DÜŞEN SİLAH ESP'si ==========
     if cfg.dropped_gun_esp then
         local guns = {}
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:IsA("Tool") and obj.Name == "Gun" then
-                local handle = obj:FindFirstChild("Handle")
-                if handle then
-                    table.insert(guns, obj)
+        -- Workspace'teki tüm "Gun" isimli Tool'ları tara
+        pcall(function()
+            for _, obj in ipairs(workspace:GetChildren()) do
+                if obj:IsA("Tool") and obj.Name == "Gun" then
+                    local handle = obj:FindFirstChild("Handle")
+                    if handle then
+                        table.insert(guns, obj)
+                    end
                 end
             end
-        end
+        end)
 
         for _, gun in ipairs(guns) do
-            local handle = gun:FindFirstChild("Handle")
-            if handle then
+            pcall(function()
+                local handle = gun:FindFirstChild("Handle")
+                if not handle then return end
                 local pos = handle.Position
-                if pos ~= pos then continue end
+                if pos ~= pos then return end
                 local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
                 if onScreen then
                     if not droppedGunESP[gun] then
@@ -223,15 +227,16 @@ local function updateESP()
                             box = newDrawing("Square"),
                             text = newDrawing("Text")
                         }
-                        if droppedGunESP[gun].box then
-                            droppedGunESP[gun].box.Thickness = 2
-                            droppedGunESP[gun].box.Filled = false
+                        local dg = droppedGunESP[gun]
+                        if dg.box then
+                            dg.box.Thickness = 2
+                            dg.box.Filled = false
                         end
-                        if droppedGunESP[gun].text then
-                            droppedGunESP[gun].text.Size = 14
-                            droppedGunESP[gun].text.Center = true
-                            droppedGunESP[gun].text.Outline = true
-                            droppedGunESP[gun].text.Color = Color3.new(1, 0.5, 0)
+                        if dg.text then
+                            dg.text.Size = 14
+                            dg.text.Center = true
+                            dg.text.Outline = true
+                            dg.text.Color = Color3.new(1, 0.5, 0)
                         end
                     end
                     local dg = droppedGunESP[gun]
@@ -252,24 +257,28 @@ local function updateESP()
                         if droppedGunESP[gun].text then droppedGunESP[gun].text.Visible = false end
                     end
                 end
-            end
+            end)
         end
 
         -- Silinmiş silahları temizle
-        for gun, drawings in pairs(droppedGunESP) do
-            if not gun.Parent or not gun:FindFirstChild("Handle") then
-                if drawings.box then pcall(function() drawings.box:Remove() end) end
-                if drawings.text then pcall(function() drawings.text:Remove() end) end
-                droppedGunESP[gun] = nil
+        pcall(function()
+            for gun, drawings in pairs(droppedGunESP) do
+                if not gun.Parent or not gun:FindFirstChild("Handle") then
+                    if drawings.box then drawings.box:Remove() end
+                    if drawings.text then drawings.text:Remove() end
+                    droppedGunESP[gun] = nil
+                end
             end
-        end
+        end)
     else
-        -- Dropped gun ESP kapalıysa hepsini sil
-        for gun, drawings in pairs(droppedGunESP) do
-            if drawings.box then pcall(function() drawings.box:Remove() end) end
-            if drawings.text then pcall(function() drawings.text:Remove() end) end
-        end
-        droppedGunESP = {}
+        -- ESP kapalıysa hepsini kaldır
+        pcall(function()
+            for gun, drawings in pairs(droppedGunESP) do
+                if drawings.box then drawings.box:Remove() end
+                if drawings.text then drawings.text:Remove() end
+            end
+            droppedGunESP = {}
+        end)
     end
 end
 
@@ -474,21 +483,17 @@ local function createPanel()
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
         btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSans btn.TextSize = 12
         local toggled = default
-        local debounce = false
         btn.Activated:Connect(function()
-            if debounce then return end
-            debounce = true
             toggled = not toggled
             btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
             btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
             callback(toggled)
-            wait(0.2)
-            debounce = false
         end)
     end
 
+    -- ESP Sayfası
     local espPage = Instance.new("Frame", content) espPage.Size = UDim2.new(1,0,1,0) espPage.BackgroundTransparency = 1
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
-    addToggle(espPage, "Dropped Gun ESP", cfg.dropped_gun_esp, function(v) cfg.dropped_gun_esp = v end, 
+    addToggle(espPage, "Dropped Gun ESP", cfg.dropped_gun_esp, function(
