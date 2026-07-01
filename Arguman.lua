@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun Işınlanma
+-- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) [Dropped Gun yok]
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,12 +16,10 @@ local cfg = {
     speed_on = false,
     speed_value = 30,
     jump_on = false,
-    dropped_gun_esp = true,
     team_check = false
 }
 
 local jumpButton = nil
-local droppedGunESP = {}
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -31,7 +29,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ (Her kare)
+-- ROL TESPİTİ
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -72,7 +70,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP (Oyuncular + Yerdeki Silah)
+-- ESP (Oyuncu)
 -- ==============================================
 local ESPData = {}
 
@@ -197,122 +195,10 @@ local function updateESP()
             d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = box.top - Vector2.new(0, 15)
         end
     end
-
-    -- Yerdeki silah ESP'si
-    if cfg.dropped_gun_esp then
-        local dropped = {}
-        for _, obj in ipairs(workspace:GetChildren()) do
-            -- Sadece Tool olan "Gun"ları al, parent'ı Model olmayanları (oyuncu karakteri değil) al
-            if obj:IsA("Tool") and obj.Name == "Gun" then
-                local parent = obj.Parent
-                if not parent or not parent:IsA("Model") then
-                    local handle = obj:FindFirstChild("Handle")
-                    if handle then
-                        table.insert(dropped, obj)
-                    end
-                end
-            end
-        end
-
-        for _, gun in ipairs(dropped) do
-            local handle = gun:FindFirstChild("Handle")
-            if handle then
-                local pos = handle.Position
-                if pos ~= pos then continue end
-                local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-                if onScreen then
-                    if not droppedGunESP[gun] then
-                        droppedGunESP[gun] = {
-                            box = newDrawing("Square"),
-                            text = newDrawing("Text")
-                        }
-                        if droppedGunESP[gun].box then
-                            droppedGunESP[gun].box.Thickness = 2
-                            droppedGunESP[gun].box.Filled = false
-                        end
-                        if droppedGunESP[gun].text then
-                            droppedGunESP[gun].text.Size = 14
-                            droppedGunESP[gun].text.Center = true
-                            droppedGunESP[gun].text.Outline = true
-                            droppedGunESP[gun].text.Color = Color3.new(1, 0.5, 0)
-                        end
-                    end
-                    local dg = droppedGunESP[gun]
-                    if dg.box then
-                        dg.box.Visible = true
-                        dg.box.Position = Vector2.new(screenPos.X - 15, screenPos.Y - 15)
-                        dg.box.Size = Vector2.new(30, 30)
-                        dg.box.Color = Color3.new(1, 0.5, 0)
-                    end
-                    if dg.text then
-                        dg.text.Visible = true
-                        dg.text.Text = "SİLAH"
-                        dg.text.Position = Vector2.new(screenPos.X, screenPos.Y - 25)
-                    end
-                else
-                    if droppedGunESP[gun] then
-                        if droppedGunESP[gun].box then droppedGunESP[gun].box.Visible = false end
-                        if droppedGunESP[gun].text then droppedGunESP[gun].text.Visible = false end
-                    end
-                end
-            end
-        end
-    end
-
-    -- Silinmiş silahların çizimlerini temizle
-    for gun, drawings in pairs(droppedGunESP) do
-        if not gun.Parent or not gun:FindFirstChild("Handle") then
-            if drawings.box then drawings.box:Remove() end
-            if drawings.text then drawings.text:Remove() end
-            droppedGunESP[gun] = nil
-        end
-    end
 end
 
 -- ==============================================
--- DROPPED GUN IŞINLANMA VE ALMA
--- ==============================================
-local function teleportAndPickupGun()
-    local myChar = LocalPlayer.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-
-    -- İlk bulduğu yerdeki "Gun" tool'unu al
-    local targetGun = nil
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" then
-            local parent = obj.Parent
-            if not parent or not parent:IsA("Model") then
-                if obj:FindFirstChild("Handle") then
-                    targetGun = obj
-                    break
-                end
-            end
-        end
-    end
-    if not targetGun then return end
-
-    local handle = targetGun:FindFirstChild("Handle")
-    local gunPos = handle.Position
-    local hrp = myChar.HumanoidRootPart
-    local oldPos = hrp.CFrame
-
-    pcall(function()
-        hrp.CFrame = CFrame.new(gunPos + Vector3.new(0, 5, 0))
-    end)
-    wait(0.1)
-    pcall(function()
-        targetGun.Parent = myChar
-        local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum then hum:EquipTool(targetGun) end
-    end)
-    wait(0.1)
-    pcall(function()
-        hrp.CFrame = oldPos
-    end)
-end
-
--- ==============================================
--- ŞERİF AIMBOT (Anlık kilit)
+-- ŞERİF AIMBOT
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
@@ -461,7 +347,7 @@ local function createPanel()
     openBtn.TextColor3 = Color3.new(1,1,1) openBtn.Font = Enum.Font.SourceSansBold openBtn.TextSize = 20
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0,280,0,240) panel.Position = UDim2.new(1,-290,0,60)
+    panel.Size = UDim2.new(0,280,0,200) panel.Position = UDim2.new(1,-290,0,60)
     panel.BackgroundColor3 = Color3.fromRGB(25,25,25) panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
 
@@ -508,4 +394,61 @@ local function createPanel()
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
-        btn.BackgroundColor3 = 
+        btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
+        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSans btn.TextSize = 12
+        local toggled = default
+        local debounce = false
+        btn.Activated:Connect(function()
+            if debounce then return end
+            debounce = true
+            toggled = not toggled
+            btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
+            btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+            callback(toggled)
+            wait(0.2)
+            debounce = false
+        end)
+    end
+
+    local espPage = Instance.new("Frame", content) espPage.Size = UDim2.new(1,0,1,0) espPage.BackgroundTransparency = 1
+    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
+    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
+    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
+
+    local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
+    addToggle(aimPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
+
+    local killerPage = Instance.new("Frame", content) killerPage.Size = UDim2.new(1,0,1,0) killerPage.BackgroundTransparency = 1
+    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
+        cfg.speed_on = v
+        if v then applySpeed() else pcall(function() if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end) end
+    end, 5)
+    addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v) cfg.jump_on = v end, 35)
+
+    addCategory("ESP", 5, espPage)
+    addCategory("Şerif Aim", 42, aimPage)
+    addCategory("Katil", 79, killerPage)
+    showPage(espPage)
+
+    openBtn.Activated:Connect(function()
+        panel.Visible = not panel.Visible
+    end)
+end
+
+-- ==============================================
+-- BAŞLATMA
+-- ==============================================
+Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
+
+createPanel()
+createJumpButton()
+applySpeed()
+
+RunService.RenderStepped:Connect(function()
+    updateESP()
+    updateAimbot()
+    updateJumpButton()
+end)
+
+print("✅ MM2: ESP + Şerif Aim + Katil (Speed & Jump) başarıyla başladı!")
