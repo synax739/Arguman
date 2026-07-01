@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun ESP & Işınlanma
+-- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun Işınlanma
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -31,7 +31,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ANLIK ROL TESPİTİ
+-- ROL TESPİTİ (Her kare)
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -72,7 +72,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP SİSTEMİ
+-- ESP (Oyuncular + Yerdeki Silah)
 -- ==============================================
 local ESPData = {}
 
@@ -110,14 +110,14 @@ local function getBox(character)
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
     
-    local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
-    local bottom = hrp.Position - Vector3.new(0, hum.HipHeight, 0)
+    local topPos = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
+    local bottomPos = hrp.Position - Vector3.new(0, hum.HipHeight, 0)
     
-    if not top or not bottom then return nil end
-    if top ~= top or bottom ~= bottom then return nil end
+    if not topPos or not bottomPos then return nil end
+    if topPos ~= topPos or bottomPos ~= bottomPos then return nil end
     
-    local success1, ts, on1 = pcall(function() return Camera:WorldToViewportPoint(top) end)
-    local success2, bs, on2 = pcall(function() return Camera:WorldToViewportPoint(bottom) end)
+    local success1, ts, on1 = pcall(function() return Camera:WorldToViewportPoint(topPos) end)
+    local success2, bs, on2 = pcall(function() return Camera:WorldToViewportPoint(bottomPos) end)
     
     if not success1 or not success2 then return nil end
     if not on1 and not on2 then return nil end
@@ -198,13 +198,19 @@ local function updateESP()
         end
     end
 
-    -- Dropped Gun ESP
+    -- Yerdeki silah ESP'si
     if cfg.dropped_gun_esp then
         local dropped = {}
         for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:IsA("Tool") and obj.Name == "Gun" and not obj.Parent:IsA("Model") then
-                local handle = obj:FindFirstChild("Handle")
-                if handle then table.insert(dropped, obj) end
+            -- Sadece Tool olan "Gun"ları al, parent'ı Model olmayanları (oyuncu karakteri değil) al
+            if obj:IsA("Tool") and obj.Name == "Gun" then
+                local parent = obj.Parent
+                if not parent or not parent:IsA("Model") then
+                    local handle = obj:FindFirstChild("Handle")
+                    if handle then
+                        table.insert(dropped, obj)
+                    end
+                end
             end
         end
 
@@ -253,6 +259,7 @@ local function updateESP()
         end
     end
 
+    -- Silinmiş silahların çizimlerini temizle
     for gun, drawings in pairs(droppedGunESP) do
         if not gun.Parent or not gun:FindFirstChild("Handle") then
             if drawings.box then drawings.box:Remove() end
@@ -269,12 +276,16 @@ local function teleportAndPickupGun()
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
+    -- İlk bulduğu yerdeki "Gun" tool'unu al
     local targetGun = nil
     for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" and not obj.Parent:IsA("Model") then
-            if obj:FindFirstChild("Handle") then
-                targetGun = obj
-                break
+        if obj:IsA("Tool") and obj.Name == "Gun" then
+            local parent = obj.Parent
+            if not parent or not parent:IsA("Model") then
+                if obj:FindFirstChild("Handle") then
+                    targetGun = obj
+                    break
+                end
             end
         end
     end
@@ -288,7 +299,7 @@ local function teleportAndPickupGun()
     pcall(function()
         hrp.CFrame = CFrame.new(gunPos + Vector3.new(0, 5, 0))
     end)
-    wait(0.15)
+    wait(0.1)
     pcall(function()
         targetGun.Parent = myChar
         local hum = myChar:FindFirstChildOfClass("Humanoid")
@@ -301,7 +312,7 @@ local function teleportAndPickupGun()
 end
 
 -- ==============================================
--- ŞERİF AIMBOT
+-- ŞERİF AIMBOT (Anlık kilit)
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
@@ -497,13 +508,4 @@ local function createPanel()
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
-        btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
-        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSans btn.TextSize = 12
-        local toggled = default
-        local debounce = false
-        btn.Activated:Connect(function()
-            if debounce then return end
-            debounce = true
-            toggled = not toggled
-            btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI"
+        btn.BackgroundColor3 = 
