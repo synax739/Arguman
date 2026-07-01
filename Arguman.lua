@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP (Her kare rol tespiti) + Şerif Aim + Katil (Speed & Jump)
+-- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Hata Korumalı
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -35,7 +35,7 @@ local function getPlayerRole(plr)
     local char = plr.Character
     local backpack = plr:FindFirstChild("Backpack")
     
-    -- 1. Önce direkt Player.Role StringValue'sini kontrol et
+    -- 1. Direkt Player.Role StringValue'si
     local roleObj = plr:FindFirstChild("Role")
     if roleObj and roleObj:IsA("StringValue") then
         local r = roleObj.Value
@@ -67,7 +67,7 @@ local function getPlayerRole(plr)
         end
     end
 
-    -- 4. Karakter üzerindeki işaretler (bazı MM2 versiyonları)
+    -- 4. Karakter üzerindeki işaretler
     if char then
         if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then return "Murderer" end
         if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then return "Sheriff" end
@@ -77,7 +77,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP (Her kare dinamik rol)
+-- ESP (Hata korumalı)
 -- ==============================================
 local ESPData = {}
 
@@ -105,7 +105,8 @@ local function removeESP(plr)
 end
 
 local function isInFront(pos)
-    return Camera.CFrame.LookVector:Dot((pos - Camera.CFrame.Position).Unit) > 0
+    local camPos = Camera.CFrame.Position
+    return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
 local function getBox(character)
@@ -113,14 +114,25 @@ local function getBox(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
-    local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
-    local bottom = hrp.Position - Vector3.new(0, 3, 0)
-    local ts, on1 = Camera:WorldToViewportPoint(top)
-    local bs, on2 = Camera:WorldToViewportPoint(bottom)
+    
+    -- Pozisyonların geçerliliğini kontrol et
+    local topPos = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
+    local bottomPos = hrp.Position - Vector3.new(0, hum.HipHeight, 0)
+    
+    -- NaN veya sonsuz kontrolü
+    if not topPos or not bottomPos then return nil end
+    if topPos ~= topPos or bottomPos ~= bottomPos then return nil end -- NaN check
+    
+    local success1, ts, on1 = pcall(function() return Camera:WorldToViewportPoint(topPos) end)
+    local success2, bs, on2 = pcall(function() return Camera:WorldToViewportPoint(bottomPos) end)
+    
+    if not success1 or not success2 then return nil end
     if not on1 and not on2 then return nil end
+    
     local h = math.abs(ts.Y - bs.Y)
     local w = h * 0.5
     local cx = (ts.X + bs.X) / 2
+    
     return {
         pos = Vector2.new(cx - w/2, math.min(ts.Y, bs.Y)),
         size = Vector2.new(w, h),
@@ -135,7 +147,7 @@ local function updateESP()
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
-        local role = getPlayerRole(plr)  -- HER KARE HESAPLANIR
+        local role = getPlayerRole(plr)
 
         if cfg.team_check and role == myRole then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -177,24 +189,33 @@ local function updateESP()
         if not ESPData[plr] then createESP(plr) end
         local d = ESPData[plr]
         if not d then continue end
+        
         local box = getBox(char)
         if not box then for _, v in pairs(d) do v.Visible = false end continue end
 
         local color = ROLE_COLORS[role] or ROLE_COLORS.Unknown
         if cfg.esp_box and d.box then
-            d.box.Visible = true d.box.Position = box.pos d.box.Size = box.size d.box.Color = color
+            d.box.Visible = true
+            d.box.Position = box.pos
+            d.box.Size = box.size
+            d.box.Color = color
         end
         if cfg.esp_dist and d.dist then
-            d.dist.Visible = true d.dist.Text = math.floor(dist) .. "m" d.dist.Position = box.bottom + Vector2.new(0, 2)
+            d.dist.Visible = true
+            d.dist.Text = math.floor(dist) .. "m"
+            d.dist.Position = box.bottom + Vector2.new(0, 2)
         end
         if d.role then
-            d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = box.top - Vector2.new(0, 15)
+            d.role.Visible = true
+            d.role.Text = role
+            d.role.Color = color
+            d.role.Position = box.top - Vector2.new(0, 15)
         end
     end
 end
 
 -- ==============================================
--- ŞERİF AIMBOT (Anlık kilit)
+-- ŞERİF AIMBOT (Hata korumalı)
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
@@ -210,6 +231,8 @@ local function getClosestMurderer()
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
     local myPos = myChar.HumanoidRootPart.Position
+    if myPos ~= myPos then return nil end -- NaN kontrolü
+    
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         if getPlayerRole(plr) ~= "Murderer" then continue end
@@ -217,7 +240,9 @@ local function getClosestMurderer()
         if not char then continue end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then continue end
-        local dist = (myPos - hrp.Position).Magnitude
+        local pos = hrp.Position
+        if pos ~= pos then continue end -- NaN kontrolü
+        local dist = (myPos - pos).Magnitude
         if dist < bestDist then bestDist = dist best = plr end
     end
     return best
@@ -228,13 +253,22 @@ local function aimAt(targetPlayer)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
+    
     local targetPos = hrp.Position + Vector3.new(0, 1, 0)
+    if targetPos ~= targetPos then return end -- NaN kontrolü
+    
     local camPos = Camera.CFrame.Position
-    Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+    if camPos ~= camPos then return end
+    
+    pcall(function()
+        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+    end)
+    
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
         local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+        if flatTarget ~= flatTarget then return end
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
         pcall(function() root.CFrame = CFrame.lookAt(root.Position, flatTarget) end)
@@ -250,18 +284,20 @@ local function updateAimbot()
 end
 
 -- ==============================================
--- SPEED HACK
+-- SPEED HACK (Hata korumalı)
 -- ==============================================
 local function applySpeed()
-    if LocalPlayer.Character and cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value end
-    end
+    pcall(function()
+        if LocalPlayer.Character and cfg.speed_on then
+            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = cfg.speed_value end
+        end
+    end)
 end
 LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
 
 -- ==============================================
--- ZIPLAMA BUTONU
+-- ZIPLAMA BUTONU (Yükseklik sınırlamalı)
 -- ==============================================
 local function createJumpButton()
     if jumpButton then jumpButton:Destroy() end
@@ -296,15 +332,27 @@ local function createJumpButton()
 
     btn.Activated:Connect(function()
         if not cfg.jump_on then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then return end
-        hum.JumpPower = 16
-        local vel = hrp.Velocity
-        hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
-        if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
+        pcall(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum then return end
+            
+            hum.JumpPower = 16
+            
+            -- Yükseklik sınırı: 5000 stud üstüne çıkma
+            if hrp.Position.Y < 5000 then
+                local vel = hrp.Velocity
+                if vel ~= vel then vel = Vector3.zero end -- NaN ise sıfırla
+                hrp.Velocity = Vector3.new(vel.X, math.min(50, 5000 - hrp.Position.Y), vel.Z)
+            else
+                -- Yüksekteyse sadece yatay hızı koru, yukarı itme
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, math.max(hrp.Velocity.Y, 0), hrp.Velocity.Z)
+            end
+            
+            if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
+        end)
     end)
 
     jumpButton = btn
@@ -401,7 +449,7 @@ local function createPanel()
     local killerPage = Instance.new("Frame", content) killerPage.Size = UDim2.new(1,0,1,0) killerPage.BackgroundTransparency = 1
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        if v then applySpeed() else if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end
+        if v then applySpeed() else pcall(function() if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end) end
     end, 5)
     addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v) cfg.jump_on = v end, 35)
 
@@ -430,4 +478,4 @@ RunService.RenderStepped:Connect(function()
     updateJumpButton()
 end)
 
-print("✅ MM2: Her kare rol tespiti ile GECİKME YOK, RAUND GEÇİŞLERİ SORUNSUZ.")
+print("✅ MM2: Hata korumalı sürüm aktif. 'Invalid position' atması engellendi.")
