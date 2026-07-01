@@ -1,4 +1,5 @@
 -- // Delta Mobil – MM2: Panel (ESP + Şerif Aim + Katil [Speed & Jump])
+-- // Jump: JumpPower 16, ekrana dokununca havada da zıplar.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -18,8 +19,7 @@ local cfg = {
     aim_smoothBase = 2.0,
     speed_on = false,
     speed_value = 30,
-    jump_on = false,
-    jump_power = 16,  -- yükseltildi
+    jump_on = false,        -- sınırsız zıplama (havada da çalışır)
     team_check = false
 }
 
@@ -283,33 +283,34 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 -- ==============================================
--- SINIRSIZ ZIPLAMA (DÜZELTİLDİ)
+-- SINIRSIZ ZIPLAMA (Havada çalışan, JumpPower 16)
 -- ==============================================
-local function applyJump()
-    if LocalPlayer.Character and cfg.jump_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.JumpPower = cfg.jump_power end
-    end
-end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    if cfg.jump_on then wait(0.2) applyJump() end
-end)
-
-UserInputService.JumpRequest:Connect(function()
+local function boostJump()
     if not cfg.jump_on then return end
     local char = LocalPlayer.Character
     if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChildOfClass("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not hum or not root then return end
+    if not hrp or not hum then return end
 
-    if hum:GetState() == Enum.HumanoidStateType.Freefall or hum:GetState() == Enum.HumanoidStateType.Jumping then
-        -- Havadayken RootPart'a yukarı yönlü ekstra hız ekle
-        root.Velocity = root.Velocity + Vector3.new(0, cfg.jump_power, 0)
-    else
-        -- Yerdeyken normal zıpla
+    -- JumpPower hep 16 kalsın
+    hum.JumpPower = 16
+
+    -- Mevcut yatay hızı koru, dikey hızı 50 yap (yukarı fırlat)
+    local vel = hrp.Velocity
+    hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
+
+    -- Eğer yerdeyse normal zıplamayı da tetikle
+    if hum.FloorMaterial ~= Enum.Material.Air then
         hum.Jump = true
+    end
+end
+
+-- Dokunma ve boşluk tuşu ile zıplama
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.Space then
+        boostJump()
     end
 end)
 
@@ -436,12 +437,6 @@ local function createPanel()
     end, 5)
     addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v)
         cfg.jump_on = v
-        if v then applyJump() else
-            if LocalPlayer.Character then
-                local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if h then h.JumpPower = 50 end
-            end
-        end
     end, 35)
 
     addCategory("ESP", 5, espPage)
@@ -462,12 +457,11 @@ end)
 
 createPanel()
 applySpeed()
-applyJump()
 
 RunService.RenderStepped:Connect(function()
     updateESP()
     updateAimbot()
 end)
 
-print("🔪 MM2 Panel: ESP + Şerif Aim + Katil (Speed & Jump) aktif!")
-print("   Sınırsız zıplama: havada zıpla tuşuna bas, yükselmeye devam et!")
+print("🔪 MM2 Panel: ESP + Şerif Aim + Katil (Speed & Havada Zıplama) aktif!")
+print("   JumpPower 16 sabit, ekrana dokunarak havada da zıplayabilirsin.")
