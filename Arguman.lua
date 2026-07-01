@@ -1,5 +1,4 @@
--- // Delta Mobil – MM2: Panel (ESP + Şerif Aim + Katil [Speed & Jump])
--- // Jump: JumpPower 16, ekrana dokununca havada da zıplar.
+-- // Delta Mobil – MM2: Panel + Zıplama Butonu (Sürüklenebilir)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,11 +6,9 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- AYARLAR
 local cfg = {
     esp_on = true,
     esp_box = true,
-    esp_name = false,
     esp_dist = true,
     esp_maxDist = 500,
     aim_on = false,
@@ -19,9 +16,11 @@ local cfg = {
     aim_smoothBase = 2.0,
     speed_on = false,
     speed_value = 30,
-    jump_on = false,        -- sınırsız zıplama (havada da çalışır)
+    jump_on = false,
     team_check = false
 }
+
+local jumpButton = nil  -- zıplama butonu
 
 -- Rol renkleri
 local ROLE_COLORS = {
@@ -136,16 +135,12 @@ local function updateESP()
         end
 
         if not cfg.esp_on then
-            if ESPData[plr] then
-                for _, v in pairs(ESPData[plr]) do v.Visible = false end
-            end
+            if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
 
         if not isInFront(hrp.Position) then
-            if ESPData[plr] then
-                for _, v in pairs(ESPData[plr]) do v.Visible = false end
-            end
+            if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
 
@@ -154,40 +149,25 @@ local function updateESP()
             dist = (my.HumanoidRootPart.Position - hrp.Position).Magnitude
         end
         if dist > cfg.esp_maxDist then
-            if ESPData[plr] then
-                for _, v in pairs(ESPData[plr]) do v.Visible = false end
-            end
+            if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
 
         if not ESPData[plr] then createESP(plr) end
         local d = ESPData[plr]
         if not d then continue end
-
         local box = getBox(char)
-        if not box then
-            for _, v in pairs(d) do v.Visible = false end
-            continue
-        end
+        if not box then for _, v in pairs(d) do v.Visible = false end continue end
 
         local color = ROLE_COLORS[role] or ROLE_COLORS.Unknown
-
         if cfg.esp_box and d.box then
-            d.box.Visible = true
-            d.box.Position = box.pos
-            d.box.Size = box.size
-            d.box.Color = color
+            d.box.Visible = true d.box.Position = box.pos d.box.Size = box.size d.box.Color = color
         end
         if cfg.esp_dist and d.dist then
-            d.dist.Visible = true
-            d.dist.Text = math.floor(dist) .. "m"
-            d.dist.Position = box.bottom + Vector2.new(0, 2)
+            d.dist.Visible = true d.dist.Text = math.floor(dist) .. "m" d.dist.Position = box.bottom + Vector2.new(0, 2)
         end
         if d.role then
-            d.role.Visible = true
-            d.role.Text = role
-            d.role.Color = color
-            d.role.Position = box.top - Vector2.new(0, 15)
+            d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = box.top - Vector2.new(0, 15)
         end
     end
 end
@@ -198,39 +178,26 @@ end
 local function hasGun()
     local myChar = LocalPlayer.Character
     if not myChar then return false end
-    for _, v in ipairs(myChar:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Gun" then return true end
-    end
+    for _, v in ipairs(myChar:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end
     local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then
-        for _, v in ipairs(bp:GetChildren()) do
-            if v:IsA("Tool") and v.Name == "Gun" then return true end
-        end
-    end
+    if bp then for _, v in ipairs(bp:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end end
     return false
 end
 
 local function getClosestMurderer()
-    local best = nil
-    local bestDist = cfg.aim_maxDist
+    local best, bestDist = nil, cfg.aim_maxDist
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
     local myPos = myChar.HumanoidRootPart.Position
-
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if getPlayerRole(plr) ~= "Murderer" then continue end
+        if plr == LocalPlayer or getPlayerRole(plr) ~= "Murderer" then continue end
         local char = plr.Character
         if not char then continue end
-        local head = char:FindFirstChild("Head")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
         if not (head or hrp) then continue end
         local targetPos = head and head.Position or hrp.Position
         local dist = (myPos - targetPos).Magnitude
-        if dist < bestDist then
-            bestDist = dist
-            best = plr
-        end
+        if dist < bestDist then bestDist = dist best = plr end
     end
     return best
 end
@@ -238,32 +205,24 @@ end
 local function aimAt(targetPlayer)
     local char = targetPlayer.Character
     if not char then return end
-    local head = char:FindFirstChild("Head")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
     local targetPart = head or hrp
     if not targetPart then return end
-
     local targetPos = targetPart.Position
     local camPos = Camera.CFrame.Position
     Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
-
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
         local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
-        pcall(function()
-            root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase)
-        end)
+        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
     end
 end
 
 local function updateAimbot()
-    if not cfg.aim_on then return end
-    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
-    if not hasGun() then return end
-
+    if not cfg.aim_on or getPlayerRole(LocalPlayer) ~= "Sheriff" or not hasGun() then return end
     local target = getClosestMurderer()
     if target then aimAt(target) end
 end
@@ -277,67 +236,81 @@ local function applySpeed()
         if hum then hum.WalkSpeed = cfg.speed_value end
     end
 end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    if cfg.speed_on then wait(0.2) applySpeed() end
-end)
+LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
 
 -- ==============================================
--- SINIRSIZ ZIPLAMA (Havada çalışan, JumpPower 16)
+-- SINIRSIZ ZIPLAMA (Sürüklenebilir Buton)
 -- ==============================================
-local function boostJump()
-    if not cfg.jump_on then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
+local function createJumpButton()
+    if jumpButton then jumpButton:Destroy() end
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "JumpButtonGui"
 
-    -- JumpPower hep 16 kalsın
-    hum.JumpPower = 16
+    local btn = Instance.new("TextButton", gui)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(1, -100, 0.8, -40)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    btn.BackgroundTransparency = 0.5
+    btn.Text = "ZIPLA"
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 20
+    btn.Visible = cfg.jump_on
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 
-    -- Mevcut yatay hızı koru, dikey hızı 50 yap (yukarı fırlat)
-    local vel = hrp.Velocity
-    hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
+    -- Sürükleme
+    local drag, dragStart, startPos = false, nil, nil
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true dragStart = input.Position startPos = btn.Position
+        end
+    end)
+    btn.InputEnded:Connect(function() drag = false end)
+    btn.InputChanged:Connect(function(input)
+        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local d = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
 
-    -- Eğer yerdeyse normal zıplamayı da tetikle
-    if hum.FloorMaterial ~= Enum.Material.Air then
-        hum.Jump = true
-    end
+    -- Zıplama eylemi
+    btn.MouseButton1Click:Connect(function()
+        if not cfg.jump_on then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then return end
+        hum.JumpPower = 16
+        local vel = hrp.Velocity
+        hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
+        if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
+    end)
+
+    jumpButton = btn
 end
 
--- Dokunma ve boşluk tuşu ile zıplama
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Touch or input.KeyCode == Enum.KeyCode.Space then
-        boostJump()
-    end
-end)
+-- Butonu cfg.jump_on değiştiğinde kontrol etmek için RenderStepped içinde izleyelim
+local function updateJumpButton()
+    if jumpButton then jumpButton.Visible = cfg.jump_on end
+end
 
 -- ==============================================
--- PANEL (Hareketli, 3 kategori)
+-- PANEL
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
-
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0,40,0,40)
-    openBtn.Position = UDim2.new(1,-50,0,10)
-    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    openBtn.Text = "⚙"
-    openBtn.TextColor3 = Color3.new(1,1,1)
-    openBtn.Font = Enum.Font.SourceSansBold
-    openBtn.TextSize = 20
+    openBtn.Size = UDim2.new(0,40,0,40) openBtn.Position = UDim2.new(1,-50,0,10)
+    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) openBtn.Text = "⚙"
+    openBtn.TextColor3 = Color3.new(1,1,1) openBtn.Font = Enum.Font.SourceSansBold openBtn.TextSize = 20
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0,280,0,200)
-    panel.Position = UDim2.new(1,-290,0,60)
-    panel.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    panel.Visible = false
+    panel.Size = UDim2.new(0,280,0,200) panel.Position = UDim2.new(1,-290,0,60)
+    panel.BackgroundColor3 = Color3.fromRGB(25,25,25) panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
 
-    -- Sürükleme
     local drag, dragStart, startPos = false, nil, nil
     panel.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -352,91 +325,61 @@ local function createPanel()
         end
     end)
 
-    -- Başlık
     local title = Instance.new("TextLabel", panel)
-    title.Size = UDim2.new(1,0,0,28)
-    title.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    title.Text = "MM2 Panel"
-    title.TextColor3 = Color3.new(1,1,1)
-    title.Font = Enum.Font.SourceSansBold
+    title.Size = UDim2.new(1,0,0,28) title.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    title.Text = "MM2 Panel" title.TextColor3 = Color3.new(1,1,1) title.Font = Enum.Font.SourceSansBold
 
-    -- Sol menü
     local sidebar = Instance.new("Frame", panel)
-    sidebar.Size = UDim2.new(0,80,1,-28)
-    sidebar.Position = UDim2.new(0,0,0,28)
+    sidebar.Size = UDim2.new(0,80,1,-28) sidebar.Position = UDim2.new(0,0,0,28)
     sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 
-    -- İçerik alanı
     local content = Instance.new("Frame", panel)
-    content.Size = UDim2.new(1,-80,1,-28)
-    content.Position = UDim2.new(0,80,0,28)
+    content.Size = UDim2.new(1,-80,1,-28) content.Position = UDim2.new(0,80,0,28)
     content.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
     local currentPage = nil
-    local function showPage(p)
-        if currentPage then currentPage.Visible = false end
-        if p then p.Visible = true currentPage = p end
-    end
-
+    local function showPage(p) if currentPage then currentPage.Visible = false end
+        if p then p.Visible = true currentPage = p end end
     local function addCategory(name, y, page)
         local btn = Instance.new("TextButton", sidebar)
-        btn.Size = UDim2.new(1,-6,0,32)
-        btn.Position = UDim2.new(0,3,0,y)
-        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-        btn.Text = name
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.SourceSansBold
-        btn.TextSize = 13
+        btn.Size = UDim2.new(1,-6,0,32) btn.Position = UDim2.new(0,3,0,y)
+        btn.BackgroundColor3 = Color3.fromRGB(60,60,60) btn.Text = name
+        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 13
         btn.MouseButton1Click:Connect(function() showPage(page) end)
     end
-
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(1,-10,0,28)
-        btn.Position = UDim2.new(0,5,0,yPos)
+        btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.SourceSans
-        btn.TextSize = 12
+        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI") btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.SourceSans btn.TextSize = 12
         local toggled = default
         btn.MouseButton1Click:Connect(function()
-            toggled = not toggled
-            btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
-            btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-            callback(toggled)
+            toggled = not toggled btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
+            btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0) callback(toggled)
         end)
     end
 
     -- ESP Sayfası
-    local espPage = Instance.new("Frame", content)
-    espPage.Size = UDim2.new(1,0,1,0)
-    espPage.BackgroundTransparency = 1
+    local espPage = Instance.new("Frame", content) espPage.Size = UDim2.new(1,0,1,0) espPage.BackgroundTransparency = 1
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
 
-    -- Şerif Aim Sayfası
-    local aimPage = Instance.new("Frame", content)
-    aimPage.Size = UDim2.new(1,0,1,0)
-    aimPage.BackgroundTransparency = 1
+    -- Şerif Aim
+    local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
     addToggle(aimPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası (Speed + Jump)
-    local killerPage = Instance.new("Frame", content)
-    killerPage.Size = UDim2.new(1,0,1,0)
-    killerPage.BackgroundTransparency = 1
+    -- Katil (Speed + Jump)
+    local killerPage = Instance.new("Frame", content) killerPage.Size = UDim2.new(1,0,1,0) killerPage.BackgroundTransparency = 1
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        if v then applySpeed() else
-            if LocalPlayer.Character then
-                local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if h then h.WalkSpeed = 16 end
-            end
-        end
+        if v then applySpeed() else if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end
     end, 5)
     addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v)
         cfg.jump_on = v
+        -- Buton görünürlüğünü güncelle
+        if jumpButton then jumpButton.Visible = v end
     end, 35)
 
     addCategory("ESP", 5, espPage)
@@ -456,12 +399,13 @@ Players.PlayerAdded:Connect(function(p)
 end)
 
 createPanel()
+createJumpButton()
 applySpeed()
 
 RunService.RenderStepped:Connect(function()
     updateESP()
     updateAimbot()
+    updateJumpButton()
 end)
 
-print("🔪 MM2 Panel: ESP + Şerif Aim + Katil (Speed & Havada Zıplama) aktif!")
-print("   JumpPower 16 sabit, ekrana dokunarak havada da zıplayabilirsin.")
+print("🔪 MM2: Zıplama Butonu aktif! Sınırsız Zıpla'yı aç, yeşil butona basarak zıpla.")
