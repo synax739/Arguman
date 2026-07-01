@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun Işınlan & Al
+-- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun Işınlan
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -137,10 +137,14 @@ end
 local function getDroppedGuns()
     local guns = {}
     for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" and obj.Parent ~= LocalPlayer.Character then
-            local handle = obj:FindFirstChild("Handle")
-            if handle then
-                table.insert(guns, obj)
+        if obj:IsA("Tool") and obj.Name == "Gun" then
+            local owner = obj.Parent
+            -- Karakter envanterinde değilse yere düşmüş sayılır
+            if not owner:IsA("Model") or not Players:GetPlayerFromCharacter(owner) then
+                local handle = obj:FindFirstChild("Handle")
+                if handle then
+                    table.insert(guns, obj)
+                end
             end
         end
     end
@@ -275,20 +279,9 @@ local function teleportAndPickupGun()
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
-    -- Yerdeki Gun'ları bul
-    local guns = {}
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" then
-            local handle = obj:FindFirstChild("Handle")
-            if handle then
-                table.insert(guns, obj)
-            end
-        end
-    end
-
+    local guns = getDroppedGuns()
     if #guns == 0 then return end
 
-    -- İlk bulunan silahı al (ya da en yakını seç)
     local targetGun = guns[1]
     local handle = targetGun:FindFirstChild("Handle")
     if not handle then return end
@@ -296,37 +289,30 @@ local function teleportAndPickupGun()
     local gunPosition = handle.Position
     if gunPosition ~= gunPosition then return end
 
-    -- Eski pozisyonu kaydet
     local hrp = myChar.HumanoidRootPart
     local oldPos = hrp.CFrame
 
-    -- Silahın hemen üstüne ışınlan
+    -- Işınlan
     pcall(function()
         hrp.CFrame = CFrame.new(gunPosition + Vector3.new(0, 5, 0))
     end)
 
-    -- Kısa bir süre bekle ve silahı karaktere al
-    task.delay(0.15, function()
-        pcall(function()
-            -- Silahı doğrudan karaktere ekle (ele al)
-            if targetGun and targetGun.Parent ~= myChar then
-                targetGun.Parent = myChar
-            end
-            -- Alternatif: hum:EquipTool(targetGun) -- humanoid varsa
-            local hum = myChar:FindFirstChildOfClass("Humanoid")
-            if hum and targetGun then
-                hum:EquipTool(targetGun)
-            end
-        end)
-
-        -- Eski pozisyona geri ışınlan (biraz gecikmeyle)
-        task.delay(0.1, function()
-            pcall(function()
-                if hrp and oldPos then
-                    hrp.CFrame = oldPos
-                end
-            end)
-        end)
+    -- Silahı al ve geri dön
+    wait(0.15)
+    pcall(function()
+        if targetGun and targetGun.Parent ~= myChar then
+            targetGun.Parent = myChar
+        end
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum and targetGun then
+            hum:EquipTool(targetGun)
+        end
+    end)
+    wait(0.1)
+    pcall(function()
+        if hrp and oldPos then
+            hrp.CFrame = oldPos
+        end
     end)
 end
 
@@ -524,4 +510,13 @@ local function createPanel()
     local function addCategory(name, y, page)
         local btn = Instance.new("TextButton", sidebar)
         btn.Size = UDim2.new(1,-6,0,32) btn.Position = UDim2.new(0,3,0,y)
-        btn.BackgroundColor
+        btn.BackgroundColor3 = Color3.fromRGB(60,60,60) btn.Text = name
+        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 13
+        btn.Activated:Connect(function() showPage(page) end)
+    end
+
+    local function addToggle(parent, name, default, callback, yPos)
+        local btn = Instance.new("TextButton", parent)
+        btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
+        btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+        btn.Text = name .. ": " .. (def
