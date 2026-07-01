@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Rol Anlık Güncelleme
+-- // Delta Mobil – MM2: ESP (Raund temizlemeli) + Şerif Aim + Katil (Speed & Jump)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -29,9 +29,15 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ (Anlık güncelleme)
+-- ROL TESPİTİ (Raund başlangıcında sıfırlanır)
 -- ==============================================
 local roleCache = {}
+
+local function clearRoleCache()
+    for plr, _ in pairs(roleCache) do
+        roleCache[plr] = nil
+    end
+end
 
 local function updateRoleCache(plr)
     local role = "Innocent"
@@ -58,6 +64,14 @@ local function updateRoleCache(plr)
     end
     roleCache[plr] = role
 end
+
+-- Yeni raund başladığında roller sıfırlanır (karakter yeniden doğduğunda)
+LocalPlayer.CharacterAdded:Connect(function()
+    clearRoleCache()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        updateRoleCache(plr)
+    end
+end)
 
 local function watchPlayer(plr)
     plr.ChildAdded:Connect(function(child)
@@ -432,4 +446,4 @@ RunService.RenderStepped:Connect(function()
     updateJumpButton()
 end)
 
-print("✅ MM2: Roller anında, panel sorunsuz, zıplama butonlu sürüm aktif!")
+print("✅ MM2: Raund geçişlerinde roller sıfırlanır, ESP temizlenir.")
