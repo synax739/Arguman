@@ -1,71 +1,44 @@
+import urllib.request
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, current_timestamp
+from pyspark.sql.functions import current_timestamp
 
-# 1. Delta Lake Destekli Spark Oturumunun Başlatılması
+# 1. GİTHUB RAW LİNKİNİN TANIMLANMASI VE ÇEKİLMESİ
+# Test ortamınızın okuyabilmesi için gerekli script/bağımlılık linki
+github_raw_url = "https://raw.githubusercontent.com/delta-io/delta/master/README.md" # Buraya kendi raw kod linkinizi koyun
+script_local_path = "/tmp/downloaded_delta_script.py"
+
+try:
+    # GitHub'dan ham dosyayı güvenli bir şekilde indiriyoruz
+    urllib.request.urlretrieve(github_raw_url, script_local_path)
+    print(f"[INFO] GitHub Raw dosyası başarıyla indirildi: {script_local_path}")
+except Exception as e:
+    print(f"[ERROR] GitHub bağlantı hatası: {str(e)}")
+    raise
+
+# 2. DELTA TABANLI SPARK OTURUMUNUN BAŞLATILMASI
+# Eğer harici bir JAR paketine ihtiyaç varsa spark.jars.packages alanına GitHub veya Maven reposu eklenir.
 spark = SparkSession.builder \
-    .appName("Delta_Lake_Production_Test") \
+    .appName("Delta_GitHub_Raw_Test") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .config("spark.jars.packages", "io.delta:delta-core_2.12:2.4.0") \
     .getOrCreate()
 
-# Test için Delta kütüphanesinin import edilmesi
-from delta.tables import DeltaTable
+# İndirilen harici script'i Spark bağlamına (context) ekliyoruz
+spark.sparkContext.addFile(script_local_path)
 
-# 2. Değişkenlerin Tanımlanması
-delta_table_path = "/tmp/delta-production-table"
-
-# 3. Örnek Mock Veri Seti Oluşturma (Müşteri Tablosu)
-initial_data = [
-    (101, "Ahmet Yılmaz", "İstanbul", 5000),
-    (102, "Mehmet Kaya", "Ankara", 7500),
-    (103, "Ayşe Demir", "İzmir", 9000)
-]
+# 3. VERİ İŞLEME VE DELTA YAZMA ADIMI
+delta_table_path = "/tmp/delta-github-table"
 columns = ["musteri_id", "isim", "sehir", "puan"]
+initial_data = [(101, "Ahmet Yılmaz", "İstanbul", 5000)]
 
 df = spark.createDataFrame(initial_data, schema=columns) \
     .withColumn("guncelleme_zamani", current_timestamp())
 
-# 4. Verinin İlk Kez Delta Formatında Yazılması
-# Şema eşleşmesini zorunlu kılar ve üzerine yazmayı güvenli hale getirir.
+# Delta formatında kayıt
 df.write \
     .format("delta") \
     .mode("overwrite") \
     .save(delta_table_path)
 
-print("[INFO] İlk veri seti Delta formatında başarıyla yazıldı.")
-
-# 5. Yeni ve Güncellenmiş Verilerin Gelmesi (CDC - Change Data Capture Durumu)
-# 102 id'li kullanıcının puanı güncelleniyor, 104 id'li yeni bir kullanıcı ekleniyor.
-incoming_data = [
-    (102, "Mehmet Kaya", "Ankara", 8200), 
-    (104, "Canan Çelik", "Bursa", 6100)
-]
-incoming_df = spark.createDataFrame(incoming_data, schema=columns) \
-    .withColumn("guncelleme_zamani", current_timestamp())
-
-# 6. DELTA MERGE (UPSERT) İŞLEMİ
-# Delta tablosu yüklenir
-target_delta_table = DeltaTable.forPath(spark, delta_table_path)
-
-# Eşleşen kayıtlar güncellenir, eşleşmeyenler yeni kayıt olarak eklenir
-target_delta_table.alias("target") \
-    .merge(
-        incoming_df.alias("source"),
-        "target.musteri_id = source.musteri_id"
-    ) \
-    .whenMatchedUpdateAll() \
-    .whenNotMatchedInsertAll() \
-    .execute()
-
-print("[INFO] Delta Merge (Upsert) işlemi hatasız tamamlandı.")
-
-# 7. PERFORMANS OPTİMİZASYONU (Optimize & Vacuum)
-# Küçük dosyaları birleştirir ve sorgu hızını artırır
-spark.sql(f"OPTIMIZE delta.`{delta_table_path}` ZORDER BY (sehir)")
-
-# Eski ve kullanılmayan dosya versiyonlarını temizler (Veri boyutunu yönetmek için)
-# Not: Üretim ortamında retention saat ayarına dikkat edilmelidir.
-spark.conf.set("spark.databricks.delta.vacuum.parallelDelete.enabled", "true")
-target_delta_table.vacuum(168) # 7 günlük geçmişi korur
-
-print("[INFO] OPTIMIZE ve VACUUM işlemleri başarıyla uygulandı.")
+print("[SUCCESS] Test başarılı. GitHub ham bağlantısı kuruldu ve Delta yazma işlemi tamamlandı.")
