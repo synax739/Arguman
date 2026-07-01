@@ -19,7 +19,7 @@ local cfg = {
     speed_on = false,
     speed_value = 30,
     jump_on = false,
-    jump_power = 50,
+    jump_power = 100,  -- yükseltildi
     team_check = false
 }
 
@@ -283,7 +283,7 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 -- ==============================================
--- SINIRSIZ ZIPLAMA
+-- SINIRSIZ ZIPLAMA (DÜZELTİLDİ)
 -- ==============================================
 local function applyJump()
     if LocalPlayer.Character and cfg.jump_on then
@@ -297,11 +297,19 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 UserInputService.JumpRequest:Connect(function()
-    if cfg.jump_on and LocalPlayer.Character then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum:GetState() == Enum.HumanoidStateType.Freefall then
-            hum.Jump = true
-        end
+    if not cfg.jump_on then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+
+    if hum:GetState() == Enum.HumanoidStateType.Freefall or hum:GetState() == Enum.HumanoidStateType.Jumping then
+        -- Havadayken RootPart'a yukarı yönlü ekstra hız ekle
+        root.Velocity = root.Velocity + Vector3.new(0, cfg.jump_power, 0)
+    else
+        -- Yerdeyken normal zıpla
+        hum.Jump = true
     end
 end)
 
@@ -462,3 +470,4 @@ RunService.RenderStepped:Connect(function()
 end)
 
 print("🔪 MM2 Panel: ESP + Şerif Aim + Katil (Speed & Jump) aktif!")
+print("   Sınırsız zıplama: havada zıpla tuşuna bas, yükselmeye devam et!")
