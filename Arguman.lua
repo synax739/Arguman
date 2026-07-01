@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP (Raund temizlemeli) + Şerif Aim + Katil (Speed & Jump)
+-- // Delta Mobil – MM2: ESP (Her kare rol tespiti) + Şerif Aim + Katil (Speed & Jump)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -29,79 +29,55 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ (Raund başlangıcında sıfırlanır)
+-- ANLIK ROL TESPİTİ (Her kare güncellenir)
 -- ==============================================
-local roleCache = {}
-
-local function clearRoleCache()
-    for plr, _ in pairs(roleCache) do
-        roleCache[plr] = nil
-    end
-end
-
-local function updateRoleCache(plr)
-    local role = "Innocent"
+local function getPlayerRole(plr)
+    local char = plr.Character
+    local backpack = plr:FindFirstChild("Backpack")
+    
+    -- 1. Önce direkt Player.Role StringValue'sini kontrol et
     local roleObj = plr:FindFirstChild("Role")
     if roleObj and roleObj:IsA("StringValue") then
         local r = roleObj.Value
-        if r == "Murderer" or r == "Killer" then role = "Murderer"
-        elseif r == "Sheriff" or r == "Hero" then role = "Sheriff"
-        elseif r == "Innocent" or r == "Civilian" then role = "Innocent"
+        if r == "Murderer" or r == "Killer" then return "Murderer"
+        elseif r == "Sheriff" or r == "Hero" then return "Sheriff"
+        elseif r == "Innocent" or r == "Civilian" then return "Innocent"
         end
     end
-    local backpack = plr:FindFirstChild("Backpack")
+
+    -- 2. Backpack kontrolü
     if backpack then
-        if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
-            role = "Murderer"
-        elseif backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
-            role = "Sheriff"
-        end
-    end
-    local char = plr.Character
-    if char then
-        if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then role = "Murderer" end
-        if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then role = "Sheriff" end
-    end
-    roleCache[plr] = role
-end
-
--- Yeni raund başladığında roller sıfırlanır (karakter yeniden doğduğunda)
-LocalPlayer.CharacterAdded:Connect(function()
-    clearRoleCache()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        updateRoleCache(plr)
-    end
-end)
-
-local function watchPlayer(plr)
-    plr.ChildAdded:Connect(function(child)
-        if child.Name == "Role" and child:IsA("StringValue") then updateRoleCache(plr) end
-        if child.Name == "Backpack" then
-            child.ChildAdded:Connect(function(bpChild)
-                if bpChild.Name == "Knife" or bpChild.Name == "Murderer" or bpChild.Name == "Gun" or bpChild.Name == "Sheriff" then
-                    updateRoleCache(plr)
-                end
-            end)
-        end
-    end)
-    if plr:FindFirstChild("Backpack") then
-        plr.Backpack.ChildAdded:Connect(function(bpChild)
-            if bpChild.Name == "Knife" or bpChild.Name == "Murderer" or bpChild.Name == "Gun" or bpChild.Name == "Sheriff" then
-                updateRoleCache(plr)
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = item.Name
+                if name == "Knife" or name == "Murderer" or name == "Killer" then return "Murderer" end
+                if name == "Gun" or name == "Sheriff" or name == "Revolver" or name == "Pistol" then return "Sheriff" end
             end
-        end)
+        end
     end
-    updateRoleCache(plr)
-end
 
-Players.PlayerAdded:Connect(function(plr)
-    watchPlayer(plr)
-    plr.CharacterAdded:Connect(function() updateRoleCache(plr) end)
-end)
-for _, plr in ipairs(Players:GetPlayers()) do watchPlayer(plr) end
+    -- 3. Karakter içindeki araçlar
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = item.Name
+                if name == "Knife" or name == "MurdererWeapon" then return "Murderer" end
+                if name == "Gun" or name == "SheriffWeapon" then return "Sheriff" end
+            end
+        end
+    end
+
+    -- 4. Karakter üzerindeki işaretler (bazı MM2 versiyonları)
+    if char then
+        if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then return "Murderer" end
+        if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then return "Sheriff" end
+    end
+
+    return "Innocent"
+end
 
 -- ==============================================
--- ESP
+-- ESP (Her kare dinamik rol)
 -- ==============================================
 local ESPData = {}
 
@@ -155,18 +131,23 @@ end
 
 local function updateESP()
     local my = LocalPlayer.Character
+    local myRole = getPlayerRole(LocalPlayer)
+
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
-        local role = roleCache[plr] or "Innocent"
-        if cfg.team_check and role == (roleCache[LocalPlayer] or "Innocent") then
+        local role = getPlayerRole(plr)  -- HER KARE HESAPLANIR
+
+        if cfg.team_check and role == myRole then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
+
         local char = plr.Character
         if not char then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
+
         local hrp = char:FindFirstChild("HumanoidRootPart")
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hrp or not hum or hum.Health <= 0 then
@@ -230,7 +211,8 @@ local function getClosestMurderer()
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
     local myPos = myChar.HumanoidRootPart.Position
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer or roleCache[plr] ~= "Murderer" then continue end
+        if plr == LocalPlayer then continue end
+        if getPlayerRole(plr) ~= "Murderer" then continue end
         local char = plr.Character
         if not char then continue end
         local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -260,7 +242,9 @@ local function aimAt(targetPlayer)
 end
 
 local function updateAimbot()
-    if not cfg.aim_on or roleCache[LocalPlayer] ~= "Sheriff" or not hasGun() then return end
+    if not cfg.aim_on then return end
+    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
+    if not hasGun() then return end
     local target = getClosestMurderer()
     if target then aimAt(target) end
 end
@@ -434,7 +418,7 @@ end
 -- ==============================================
 -- BAŞLATMA
 -- ==============================================
-Players.PlayerRemoving:Connect(function(p) removeESP(p) roleCache[p] = nil end)
+Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
 
 createPanel()
 createJumpButton()
@@ -446,4 +430,4 @@ RunService.RenderStepped:Connect(function()
     updateJumpButton()
 end)
 
-print("✅ MM2: Raund geçişlerinde roller sıfırlanır, ESP temizlenir.")
+print("✅ MM2: Her kare rol tespiti ile GECİKME YOK, RAUND GEÇİŞLERİ SORUNSUZ.")
