@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun Işınlan
+-- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun ESP & Işınlanma
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -31,7 +31,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ
+-- ANLIK ROL TESPİTİ
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -72,7 +72,7 @@ local function getPlayerRole(plr)
 end
 
 -- ==============================================
--- ESP (Oyuncu + Dropped Gun)
+-- ESP SİSTEMİ
 -- ==============================================
 local ESPData = {}
 
@@ -110,14 +110,14 @@ local function getBox(character)
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
     
-    local topPos = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
-    local bottomPos = hrp.Position - Vector3.new(0, hum.HipHeight, 0)
+    local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
+    local bottom = hrp.Position - Vector3.new(0, hum.HipHeight, 0)
     
-    if not topPos or not bottomPos then return nil end
-    if topPos ~= topPos or bottomPos ~= bottomPos then return nil end
+    if not top or not bottom then return nil end
+    if top ~= top or bottom ~= bottom then return nil end
     
-    local success1, ts, on1 = pcall(function() return Camera:WorldToViewportPoint(topPos) end)
-    local success2, bs, on2 = pcall(function() return Camera:WorldToViewportPoint(bottomPos) end)
+    local success1, ts, on1 = pcall(function() return Camera:WorldToViewportPoint(top) end)
+    local success2, bs, on2 = pcall(function() return Camera:WorldToViewportPoint(bottom) end)
     
     if not success1 or not success2 then return nil end
     if not on1 and not on2 then return nil end
@@ -132,23 +132,6 @@ local function getBox(character)
         top = Vector2.new(cx, math.min(ts.Y, bs.Y)),
         bottom = Vector2.new(cx, math.min(ts.Y, bs.Y) + h)
     }
-end
-
-local function getDroppedGuns()
-    local guns = {}
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" then
-            local owner = obj.Parent
-            -- Karakter envanterinde değilse yere düşmüş sayılır
-            if not owner:IsA("Model") or not Players:GetPlayerFromCharacter(owner) then
-                local handle = obj:FindFirstChild("Handle")
-                if handle then
-                    table.insert(guns, obj)
-                end
-            end
-        end
-    end
-    return guns
 end
 
 local function updateESP()
@@ -217,7 +200,14 @@ local function updateESP()
 
     -- Dropped Gun ESP
     if cfg.dropped_gun_esp then
-        local dropped = getDroppedGuns()
+        local dropped = {}
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Tool") and obj.Name == "Gun" and not obj.Parent:IsA("Model") then
+                local handle = obj:FindFirstChild("Handle")
+                if handle then table.insert(dropped, obj) end
+            end
+        end
+
         for _, gun in ipairs(dropped) do
             local handle = gun:FindFirstChild("Handle")
             if handle then
@@ -273,46 +263,40 @@ local function updateESP()
 end
 
 -- ==============================================
--- DROPPED GUN: IŞINLAN, AL, GERİ DÖN
+-- DROPPED GUN IŞINLANMA VE ALMA
 -- ==============================================
 local function teleportAndPickupGun()
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
 
-    local guns = getDroppedGuns()
-    if #guns == 0 then return end
+    local targetGun = nil
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Tool") and obj.Name == "Gun" and not obj.Parent:IsA("Model") then
+            if obj:FindFirstChild("Handle") then
+                targetGun = obj
+                break
+            end
+        end
+    end
+    if not targetGun then return end
 
-    local targetGun = guns[1]
     local handle = targetGun:FindFirstChild("Handle")
-    if not handle then return end
-
-    local gunPosition = handle.Position
-    if gunPosition ~= gunPosition then return end
-
+    local gunPos = handle.Position
     local hrp = myChar.HumanoidRootPart
     local oldPos = hrp.CFrame
 
-    -- Işınlan
     pcall(function()
-        hrp.CFrame = CFrame.new(gunPosition + Vector3.new(0, 5, 0))
+        hrp.CFrame = CFrame.new(gunPos + Vector3.new(0, 5, 0))
     end)
-
-    -- Silahı al ve geri dön
     wait(0.15)
     pcall(function()
-        if targetGun and targetGun.Parent ~= myChar then
-            targetGun.Parent = myChar
-        end
+        targetGun.Parent = myChar
         local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum and targetGun then
-            hum:EquipTool(targetGun)
-        end
+        if hum then hum:EquipTool(targetGun) end
     end)
     wait(0.1)
     pcall(function()
-        if hrp and oldPos then
-            hrp.CFrame = oldPos
-        end
+        hrp.CFrame = oldPos
     end)
 end
 
@@ -355,15 +339,11 @@ local function aimAt(targetPlayer)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    
     local targetPos = hrp.Position + Vector3.new(0, 1, 0)
     if targetPos ~= targetPos then return end
-    
     local camPos = Camera.CFrame.Position
     if camPos ~= camPos then return end
-    
     pcall(function() Camera.CFrame = CFrame.lookAt(camPos, targetPos) end)
-    
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
@@ -438,7 +418,6 @@ local function createJumpButton()
             local hrp = char:FindFirstChild("HumanoidRootPart")
             local hum = char:FindFirstChildOfClass("Humanoid")
             if not hrp or not hum then return end
-            
             hum.JumpPower = 16
             if hrp.Position.Y < 5000 then
                 local vel = hrp.Velocity
@@ -519,4 +498,12 @@ local function createPanel()
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
-        btn.Text = name .. ": " .. (def
+        btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
+        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSans btn.TextSize = 12
+        local toggled = default
+        local debounce = false
+        btn.Activated:Connect(function()
+            if debounce then return end
+            debounce = true
+            toggled = not toggled
+            btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI"
