@@ -1,5 +1,5 @@
--- MM2 DEBUG PANEL - Yerdeki Silahları Bul
--- Test butonuna bas, yerdeki silahları listeler
+-- MM2 EVRENSEL TARAYICI - Tool, Model, Part, Her Şeyi Bulur
+-- Şerif ölünce yere ne düşüyorsa onu bulur
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -7,56 +7,52 @@ local Camera = workspace.CurrentCamera
 
 -- GUI oluştur
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DebugPanel"
+screenGui.Name = "UniversalScanner"
 screenGui.Parent = game.CoreGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 350, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainFrame.BackgroundTransparency = 0.95
+mainFrame.Size = UDim2.new(0, 380, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -225)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+mainFrame.BackgroundTransparency = 0.92
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
--- Başlık
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.Position = UDim2.new(0, 0, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "🔍 SILAH TARAYICI"
+title.Text = "🔍 EVRENSEL TARAYICI"
 title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 20
+title.TextSize = 18
 title.Font = Enum.Font.SourceSansBold
 title.Parent = mainFrame
 
--- Test butonu
 local testBtn = Instance.new("TextButton")
-testBtn.Size = UDim2.new(0, 120, 0, 40)
-testBtn.Position = UDim2.new(0.5, -60, 0, 50)
-testBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-testBtn.Text = "🔍 TEST"
+testBtn.Size = UDim2.new(0, 140, 0, 45)
+testBtn.Position = UDim2.new(0.5, -70, 0, 50)
+testBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+testBtn.Text = "🔍 TARA"
 testBtn.TextColor3 = Color3.new(1, 1, 1)
-testBtn.TextSize = 18
+testBtn.TextSize = 20
 testBtn.Font = Enum.Font.SourceSansBold
 testBtn.Parent = mainFrame
-Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 10)
 
--- Sonuç listesi (ScrollingFrame)
 local resultFrame = Instance.new("ScrollingFrame")
-resultFrame.Size = UDim2.new(1, -20, 0, 280)
-resultFrame.Position = UDim2.new(0, 10, 0, 105)
-resultFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-resultFrame.BackgroundTransparency = 0.8
+resultFrame.Size = UDim2.new(1, -20, 0, 320)
+resultFrame.Position = UDim2.new(0, 10, 0, 110)
+resultFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+resultFrame.BackgroundTransparency = 0.85
 resultFrame.BorderSizePixel = 0
 resultFrame.Parent = mainFrame
 Instance.new("UICorner", resultFrame).CornerRadius = UDim.new(0, 8)
 
 local resultLayout = Instance.new("UIListLayout")
-resultLayout.Padding = UDim.new(0, 4)
+resultLayout.Padding = UDim.new(0, 3)
 resultLayout.Parent = resultFrame
 
--- Silinmiş yazıları temizleme
 local function clearResults()
     for _, child in ipairs(resultFrame:GetChildren()) do
         if child:IsA("TextLabel") then
@@ -65,86 +61,109 @@ local function clearResults()
     end
 end
 
--- Yerdeki silahları tara
-local function scanGuns()
+local function scanEverything()
     clearResults()
     
-    local found = 0
-    local tools = {}
+    local foundItems = {}
+    local keywords = {"gun", "silah", "sheriff", "pistol", "revolver", "weapon", "knife", "murderer", "handle"}
     
-    -- workspace'teki tüm Tool'ları tara
+    -- workspace'teki HER ŞEYİ tara
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Tool") then
+        local name = obj.Name:lower()
+        local isMatch = false
+        
+        -- İsminde anahtar kelime var mı?
+        for _, kw in ipairs(keywords) do
+            if name:find(kw) then
+                isMatch = true
+                break
+            end
+        end
+        
+        -- Handle varsa da al (silahların genelde Handle'ı olur)
+        if not isMatch and obj:IsA("BasePart") then
             local parent = obj.Parent
+            if parent and parent:FindFirstChild("Handle") then
+                isMatch = true
+            end
+        end
+        
+        -- Tool ise direkt al
+        if obj:IsA("Tool") then
+            isMatch = true
+        end
+        
+        if isMatch then
+            -- Oyuncunun elinde mi kontrol et
             local isHeld = false
-            
-            -- Oyuncunun elinde mi?
+            local parent = obj.Parent
             if parent and parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
                 isHeld = true
             end
             
-            -- Sadece yerdekileri al
+            -- Sadece yerdekileri al (elindekileri alma)
             if not isHeld then
-                table.insert(tools, {
+                table.insert(foundItems, {
                     name = obj.Name,
-                    parentName = parent and parent.Name or "YOK",
+                    class = obj.ClassName,
+                    parent = parent and parent.Name or "YOK",
+                    position = obj:IsA("BasePart") and obj.Position or nil,
                     hasHandle = obj:FindFirstChild("Handle") ~= nil
                 })
-                found = found + 1
             end
         end
     end
     
     -- Sonuçları göster
-    if found == 0 then
-        local noGun = Instance.new("TextLabel")
-        noGun.Size = UDim2.new(1, 0, 0, 30)
-        noGun.BackgroundTransparency = 1
-        noGun.Text = "❌ Yerde silah bulunamadı!"
-        noGun.TextColor3 = Color3.fromRGB(255, 200, 100)
-        noGun.TextSize = 16
-        noGun.Font = Enum.Font.SourceSans
-        noGun.Parent = resultFrame
+    if #foundItems == 0 then
+        local noItem = Instance.new("TextLabel")
+        noItem.Size = UDim2.new(1, 0, 0, 35)
+        noItem.BackgroundTransparency = 1
+        noItem.Text = "❌ Hiçbir şey bulunamadı!"
+        noItem.TextColor3 = Color3.fromRGB(255, 200, 100)
+        noItem.TextSize = 18
+        noItem.Font = Enum.Font.SourceSans
+        noItem.Parent = resultFrame
     else
-        -- Başlık
         local header = Instance.new("TextLabel")
         header.Size = UDim2.new(1, 0, 0, 30)
         header.BackgroundTransparency = 1
-        header.Text = "🔫 " .. found .. " adet yerde silah bulundu:"
+        header.Text = "🔫 " .. #foundItems .. " adet nesne bulundu:"
         header.TextColor3 = Color3.fromRGB(100, 255, 100)
-        header.TextSize = 16
+        header.TextSize = 15
         header.Font = Enum.Font.SourceSansBold
         header.Parent = resultFrame
         
-        for i, tool in ipairs(tools) do
+        for i, item in ipairs(foundItems) do
             local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 0, 24)
+            label.Size = UDim2.new(1, 0, 0, 22)
             label.BackgroundTransparency = 1
-            label.Text = i .. ". " .. tool.name .. " | Ebeveyn: " .. tool.parentName
-            if tool.hasHandle then
-                label.Text = label.Text .. " ✅ Handle var"
-            else
-                label.Text = label.Text .. " ⚠️ Handle yok"
+            local text = i .. ". " .. item.name .. " (" .. item.class .. ")"
+            text = text .. " | Ebeveyn: " .. item.parent
+            if item.hasHandle then
+                text = text .. " ✅ Handle"
             end
+            if item.position then
+                text = text .. " 📍 " .. string.sub(tostring(item.position), 1, 20)
+            end
+            label.Text = text
             label.TextColor3 = Color3.fromRGB(255, 255, 255)
-            label.TextSize = 13
+            label.TextSize = 11
             label.Font = Enum.Font.SourceSans
             label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = resultFrame
         end
     end
     
-    -- Sonuç sayısını başlığa yaz
-    title.Text = "🔍 SILAH TARAYICI (" .. found .. " adet)"
+    title.Text = "🔍 EVRENSEL TARAYICI (" .. #foundItems .. " adet)"
 end
 
--- Butona tıklayınca tara
 testBtn.MouseButton1Click:Connect(function()
-    scanGuns()
+    scanEverything()
 end)
 
 -- Otomatik ilk tarama
-wait(0.5)
-scanGuns()
+wait(0.8)
+scanEverything()
 
-print("🔍 Debug panel aktif! 'TEST' butonuna basarak yerdeki silahları tarayabilirsin.")
+print("🔍 Evrensel tarayıcı aktif! 'TARA' butonuna bas, her şeyi tarar.")
