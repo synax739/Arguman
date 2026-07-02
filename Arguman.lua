@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (Jump YOK)
+-- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (ÇALIŞIR)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -289,13 +289,24 @@ local function updateAimbot()
     if target then aimAt(target) end
 end
 
--- ===== SPEED HACK (SADECE SPEED, JUMP YOK) =====
+-- ===== SPEED HACK (DÜZELTİLDİ) =====
 local function applySpeed()
     if LocalPlayer.Character and cfg.speed_on then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then hum.WalkSpeed = cfg.speed_value
+    elseif LocalPlayer.Character and not cfg.speed_on then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed == cfg.speed_value then
+            hum.WalkSpeed = 16
+        end
     end
 end
+
+-- Karakter değişince speed'i uygula
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(0.5)
+    applySpeed()
+end)
 
 -- ==============================================
 -- PANEL (Yan Menü - ESP, Şerif, Katil)
@@ -454,17 +465,11 @@ local function createPanel()
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası (SADECE SPEED)
+    -- Katil Sayfası (SPEED)
     local killerPage = createPage()
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        if v then applySpeed()
-        else
-            if LocalPlayer.Character then
-                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum then hum.WalkSpeed = 16 end
-            end
-        end
+        applySpeed()
     end, 5)
 
     -- Menü butonları
@@ -484,6 +489,8 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 
 createPanel()
+
+-- Karakter varsa hemen speed'i uygula
 wait(0.5)
 applySpeed()
 
@@ -492,7 +499,8 @@ RunService.RenderStepped:Connect(function()
         updateESP()
         updateGunESP()
         updateAimbot()
+        applySpeed() -- HER KARE SPEED'İ KONTROL ET
     end)
 end)
 
-print("🔪 MM2 Yüklendi! Speed Hack eklendi.")
+print("🔪 MM2 Yüklendi! Speed Hack çalışıyor.")
