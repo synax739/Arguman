@@ -1,4 +1,4 @@
--- MM2 FULL - Panel (ESP + Şerif Aim + Speed)
+-- MM2 - SADECE PANEL + ESP + GUN ESP (Speed ve Aim YOK)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,11 +11,6 @@ local cfg = {
     esp_dist = true,
     esp_maxDist = 500,
     gun_esp = true,
-    aim_on = false,
-    aim_maxDist = 120,
-    aim_smoothBase = 2.0,
-    speed_on = false,
-    speed_value = 30,
     team_check = false
 }
 
@@ -29,9 +24,6 @@ local ROLE_COLORS = {
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
 
--- ==============================================
--- ROL TESPİTİ
--- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
@@ -58,9 +50,6 @@ local function getPlayerRole(plr)
     return "Innocent"
 end
 
--- ==============================================
--- DRAWING FONKSİYONLARI
--- ==============================================
 local function newDrawing(t)
     local ok, d = pcall(function() return Drawing.new(t) end)
     return ok and d or nil
@@ -71,9 +60,7 @@ local function isInFront(pos)
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
--- ==============================================
--- OYUNCU ESP
--- ==============================================
+-- ===== OYUNCU ESP =====
 local function createESP(plr)
     local d = {}
     d.box = newDrawing("Square")
@@ -174,9 +161,7 @@ local function updateESP()
     end
 end
 
--- ==============================================
--- GUN ESP
--- ==============================================
+-- ===== GUN ESP =====
 local function updateGunESP()
     if not cfg.gun_esp then
         for _, obj in pairs(gunESPObjects) do
@@ -246,87 +231,12 @@ local function updateGunESP()
     end
 end
 
--- ==============================================
--- ŞERİF AIMBOT
--- ==============================================
-local function hasGun()
-    local myChar = LocalPlayer.Character
-    if not myChar then return false end
-    for _, v in ipairs(myChar:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then for _, v in ipairs(bp:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end end
-    return false
-end
-
-local function getClosestMurderer()
-    local best, bestDist = nil, cfg.aim_maxDist
-    local myChar = LocalPlayer.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
-    local myPos = myChar.HumanoidRootPart.Position
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer or getPlayerRole(plr) ~= "Murderer" then continue end
-        local char = plr.Character
-        if not char then continue end
-        local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
-        if not (head or hrp) then continue end
-        local targetPos = head and head.Position or hrp.Position
-        local dist = (myPos - targetPos).Magnitude
-        if dist < bestDist then bestDist = dist best = plr end
-    end
-    return best
-end
-
-local function aimAt(targetPlayer)
-    local char = targetPlayer.Character
-    if not char then return end
-    local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
-    local targetPart = head or hrp
-    if not targetPart then return end
-    local targetPos = targetPart.Position
-    local camPos = Camera.CFrame.Position
-    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
-    local myChar = LocalPlayer.Character
-    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-        local root = myChar.HumanoidRootPart
-        local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
-        local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum then hum.AutoRotate = false end
-        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
-    end
-end
-
-local function updateAimbot()
-    if not cfg.aim_on or getPlayerRole(LocalPlayer) ~= "Sheriff" or not hasGun() then return end
-    local target = getClosestMurderer()
-    if target then aimAt(target) end
-end
-
--- ==============================================
--- SPEED HACK
--- ==============================================
-local function applySpeed()
-    if LocalPlayer.Character and cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value
-    end
-end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    if cfg.speed_on then
-        wait(0.2)
-        applySpeed()
-    end
-end)
-
--- ==============================================
--- PANEL (Dikdörtgen, 3 Kategori - ESP + Şerif + Katil/Speed)
--- ==============================================
+-- ===== PANEL =====
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     gui.ResetOnSpawn = false
 
-    -- Aç/Kapa butonu
     local openBtn = Instance.new("TextButton", gui)
     openBtn.Size = UDim2.new(0, 50, 0, 50)
     openBtn.Position = UDim2.new(1, -60, 0, 10)
@@ -338,7 +248,6 @@ local function createPanel()
     openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
     panel.Size = UDim2.new(0, 280, 0, 320)
     panel.Position = UDim2.new(1, -295, 0, 70)
@@ -384,7 +293,7 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Kategori butonları (3 adet)
+    -- Kategori butonları (2 adet - ESP + Şerif)
     local tabFrame = Instance.new("Frame", panel)
     tabFrame.Size = UDim2.new(1, 0, 0, 40)
     tabFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -394,12 +303,12 @@ local function createPanel()
     local activeTab = nil
     local function createTab(name, x, page)
         local btn = Instance.new("TextButton", tabFrame)
-        btn.Size = UDim2.new(0.333, 0, 1, 0)
+        btn.Size = UDim2.new(0.5, 0, 1, 0)
         btn.Position = UDim2.new(x, 0, 0, 0)
         btn.BackgroundTransparency = 1
         btn.Text = name
         btn.TextColor3 = Color3.fromRGB(160, 160, 190)
-        btn.TextSize = 13
+        btn.TextSize = 14
         btn.Font = Enum.Font.SourceSansBold
         btn.BorderSizePixel = 0
 
@@ -427,7 +336,6 @@ local function createPanel()
         end
     end
 
-    -- Sayfa oluşturucu
     local function createPage()
         local page = Instance.new("Frame", panel)
         page.Name = "Page"
@@ -438,7 +346,6 @@ local function createPanel()
         return page
     end
 
-    -- Toggle oluşturucu
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1, -10, 0, 34)
@@ -470,38 +377,26 @@ local function createPanel()
     addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 116)
     addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 154)
 
-    -- Şerif Sayfası
+    -- Şerif Sayfası (BOŞ - sadece placeholder)
     local sheriffPage = createPage()
-    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 2)
+    local placeholder = Instance.new("TextLabel", sheriffPage)
+    placeholder.Size = UDim2.new(1, 0, 1, 0)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "🔜 Şerif Aim yakında..."
+    placeholder.TextColor3 = Color3.fromRGB(150, 150, 180)
+    placeholder.TextSize = 18
+    placeholder.Font = Enum.Font.SourceSans
+    placeholder.TextScaled = true
 
-    -- Katil Sayfası (SPEED EKLENDİ)
-    local killerPage = createPage()
-    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
-        cfg.speed_on = v
-        if v then
-            applySpeed()
-        else
-            if LocalPlayer.Character then
-                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum then hum.WalkSpeed = 16
-            end
-        end
-    end, 2)
-
-    -- Kategori butonları
     createTab("🔍 ESP", 0, espPage)
-    createTab("🔫 Şerif", 0.333, sheriffPage)
-    createTab("🔪 Katil", 0.666, killerPage)
+    createTab("🔫 Şerif", 0.5, sheriffPage)
 
-    -- İlk sayfayı göster
     espPage.Visible = true
 
     openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
--- ==============================================
--- BAŞLAT
--- ==============================================
+-- ===== BAŞLAT =====
 Players.PlayerRemoving:Connect(function(p) 
     if ESPData[p] then 
         for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
@@ -511,16 +406,11 @@ end)
 
 createPanel()
 
--- İlk speed uygulaması (eğer açık kaydedilmişse)
-wait(0.5)
-applySpeed()
-
 RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
         updateGunESP()
-        updateAimbot()
     end)
 end)
 
-print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla. Katil sayfasında Speed Hack var.")
+print("🔪 MM2 Yüklendi! ⚙ butonuna tıkla.")
