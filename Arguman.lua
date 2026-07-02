@@ -1,4 +1,4 @@
--- MM2 GUN ESP - GunDrop'u Gösterir (Şerif ölünce yere düşen silah)
+-- MM2 GUN ESP - SADECE GUNDROP (Yere Düşen Silah)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -28,35 +28,31 @@ local function updateGunESP()
         return
     end
 
-    -- Eski objeleri temizle (sadece görünmeyenleri değil, hepsini)
+    -- Eski objeleri temizle
     for _, obj in pairs(gunESPObjects) do
         pcall(function() obj.box:Remove() end)
         pcall(function() obj.text:Remove() end)
     end
     gunESPObjects = {}
 
-    -- Yerdeki GunDrop'ları tara
+    -- SADECE GunDrop'ları tara
     for _, obj in ipairs(workspace:GetDescendants()) do
-        -- GunDrop veya GunDisplay veya isminde Gun geçen Part'ları bul
-        if obj:IsA("BasePart") and (obj.Name == "GunDrop" or obj.Name == "GunDisplay" or obj.Name:find("Gun")) then
-            -- Oyuncunun elinde olup olmadığını kontrol et (Tool olarak)
+        if obj:IsA("BasePart") and obj.Name == "GunDrop" then
+            -- Oyuncunun elinde mi kontrol et
             local isHeld = false
             local parent = obj.Parent
             if parent then
-                -- Eğer parent bir Tool ise ve Tool bir oyuncunun elindeyse
                 if parent:IsA("Tool") then
                     local toolParent = parent.Parent
                     if toolParent and toolParent:IsA("Model") and toolParent:FindFirstChild("Humanoid") then
                         isHeld = true
                     end
                 end
-                -- Eğer doğrudan bir oyuncunun içindeyse
                 if parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
                     isHeld = true
                 end
             end
             
-            -- Eğer elinde değilse ve yerdeyse göster
             if not isHeld then
                 local pos = obj.Position
                 if pos ~= pos then continue end
@@ -79,7 +75,7 @@ local function updateGunESP()
                         text.Center = true
                         text.Outline = true
                         text.Color = Color3.fromRGB(255, 200, 0)
-                        text.Text = "🔫 " .. obj.Name
+                        text.Text = "🔫 SILAH"
                         text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
                         text.Visible = true
                     end
@@ -91,12 +87,11 @@ local function updateGunESP()
     end
 end
 
--- Her kare güncelle
 RunService.RenderStepped:Connect(function()
     updateGunESP()
 end)
 
--- Panel (basit)
+-- Panel
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "GunESP_Panel"
@@ -119,4 +114,4 @@ local function createPanel()
 end
 
 createPanel()
-print("🔫 GUN ESP AKTIF! Yerdeki GunDrop ve GunDisplay'leri gosterir.")
+print("🔫 GUN ESP AKTIF! Sadece yere dusen silahlari (GunDrop) gosterir.")
