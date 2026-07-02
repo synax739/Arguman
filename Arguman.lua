@@ -1,4 +1,4 @@
--- GUN ESP + OYUNCU ESP (Çalışıyor mu kontrol et)
+-- GUN ESP + OYUNCU ESP + ŞERİF AIM (Aimbot)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,7 +9,10 @@ local cfg = {
     gun_esp = true,
     esp_on = true,
     esp_box = true,
-    esp_dist = true
+    esp_dist = true,
+    aim_on = false,           -- YENİ
+    aim_maxDist = 120,
+    aim_smoothBase = 2.0
 }
 
 local gunESPObjects = {}
@@ -22,6 +25,9 @@ local ROLE_COLORS = {
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
 
+-- ==============================================
+-- ROL TESPİTİ
+-- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
@@ -58,7 +64,9 @@ local function isInFront(pos)
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
--- ===== OYUNCU ESP =====
+-- ==============================================
+-- OYUNCU ESP
+-- ==============================================
 local function createESP(plr)
     local d = {}
     d.box = newDrawing("Square")
@@ -151,7 +159,9 @@ local function updateESP()
     end
 end
 
--- ===== GUN ESP =====
+-- ==============================================
+-- GUN ESP
+-- ==============================================
 local function updateGunESP()
     if not cfg.gun_esp then
         for _, obj in pairs(gunESPObjects) do
@@ -221,35 +231,116 @@ local function updateGunESP()
     end
 end
 
--- ===== PANEL =====
+-- ==============================================
+-- ŞERİF AIMBOT (YENİ)
+-- ==============================================
+local function hasGun()
+    local myChar = LocalPlayer.Character
+    if not myChar then return false end
+    for _, v in ipairs(myChar:GetChildren()) do 
+        if v:IsA("Tool") and v.Name == "Gun" then return true end 
+    end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then 
+        for _, v in ipairs(bp:GetChildren()) do 
+            if v:IsA("Tool") and v.Name == "Gun" then return true end 
+        end 
+    end
+    return false
+end
+
+local function getClosestMurderer()
+    local best, bestDist = nil, cfg.aim_maxDist
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = myChar.HumanoidRootPart.Position
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if getPlayerRole(plr) ~= "Murderer" then continue end
+        local char = plr.Character
+        if not char then continue end
+        local head = char:FindFirstChild("Head")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not (head or hrp) then continue end
+        local targetPos = head and head.Position or hrp.Position
+        local dist = (myPos - targetPos).Magnitude
+        if dist < bestDist then 
+            bestDist = dist 
+            best = plr 
+        end
+    end
+    return best
+end
+
+local function aimAt(targetPlayer)
+    local char = targetPlayer.Character
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local targetPart = head or hrp
+    if not targetPart then return end
+    local targetPos = targetPart.Position
+    local camPos = Camera.CFrame.Position
+    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
+    local myChar = LocalPlayer.Character
+    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+        local root = myChar.HumanoidRootPart
+        local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum then hum.AutoRotate = false end
+        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
+    end
+end
+
+local function updateAimbot()
+    if not cfg.aim_on then return end
+    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
+    if not hasGun() then return end
+    local target = getClosestMurderer()
+    if target then aimAt(target) end
+end
+
+-- ==============================================
+-- PANEL (3 BUTON)
+-- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     
-    local btn = Instance.new("TextButton", gui)
-    btn.Size = UDim2.new(0, 120, 0, 45)
-    btn.Position = UDim2.new(0, 10, 0, 10)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-    btn.Text = "GUN ESP: AÇIK"
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local btn1 = Instance.new("TextButton", gui)
+    btn1.Size = UDim2.new(0, 120, 0, 40)
+    btn1.Position = UDim2.new(0, 10, 0, 10)
+    btn1.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    btn1.Text = "GUN ESP: AÇIK"
+    btn1.TextColor3 = Color3.new(1, 1, 1)
+    btn1.Font = Enum.Font.SourceSansBold
+    btn1.TextSize = 14
+    Instance.new("UICorner", btn1).CornerRadius = UDim.new(0, 8)
     
     local btn2 = Instance.new("TextButton", gui)
-    btn2.Size = UDim2.new(0, 120, 0, 45)
-    btn2.Position = UDim2.new(0, 10, 0, 60)
+    btn2.Size = UDim2.new(0, 120, 0, 40)
+    btn2.Position = UDim2.new(0, 10, 0, 55)
     btn2.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
     btn2.Text = "ESP: AÇIK"
     btn2.TextColor3 = Color3.new(1, 1, 1)
     btn2.Font = Enum.Font.SourceSansBold
-    btn2.TextSize = 16
+    btn2.TextSize = 14
     Instance.new("UICorner", btn2).CornerRadius = UDim.new(0, 8)
     
-    btn.Activated:Connect(function()
+    local btn3 = Instance.new("TextButton", gui)
+    btn3.Size = UDim2.new(0, 120, 0, 40)
+    btn3.Position = UDim2.new(0, 10, 0, 100)
+    btn3.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    btn3.Text = "ŞERİF AIM: KAPALI"
+    btn3.TextColor3 = Color3.new(1, 1, 1)
+    btn3.Font = Enum.Font.SourceSansBold
+    btn3.TextSize = 14
+    Instance.new("UICorner", btn3).CornerRadius = UDim.new(0, 8)
+    
+    btn1.Activated:Connect(function()
         cfg.gun_esp = not cfg.gun_esp
-        btn.Text = cfg.gun_esp and "GUN ESP: AÇIK" or "GUN ESP: KAPALI"
-        btn.BackgroundColor3 = cfg.gun_esp and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+        btn1.Text = cfg.gun_esp and "GUN ESP: AÇIK" or "GUN ESP: KAPALI"
+        btn1.BackgroundColor3 = cfg.gun_esp and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
     end)
     
     btn2.Activated:Connect(function()
@@ -257,15 +348,24 @@ local function createPanel()
         btn2.Text = cfg.esp_on and "ESP: AÇIK" or "ESP: KAPALI"
         btn2.BackgroundColor3 = cfg.esp_on and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
     end)
+    
+    btn3.Activated:Connect(function()
+        cfg.aim_on = not cfg.aim_on
+        btn3.Text = cfg.aim_on and "ŞERİF AIM: AÇIK" or "ŞERİF AIM: KAPALI"
+        btn3.BackgroundColor3 = cfg.aim_on and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+    end)
 end
 
--- ===== BAŞLAT =====
+-- ==============================================
+-- BAŞLAT
+-- ==============================================
 RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
         updateGunESP()
+        updateAimbot()
     end)
 end)
 
 createPanel()
-print("🔫 Gun ESP + Oyuncu ESP aktif! 2 buton var.")
+print("🔫 Gun ESP + Oyuncu ESP + Şerif Aim aktif!")
