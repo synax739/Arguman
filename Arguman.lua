@@ -1,4 +1,4 @@
--- MM2 FULL - Panel + ESP + Gun ESP + Şerif Aim
+-- MM2 FULL - Gelişmiş Panel + ESP + Gun ESP + Şerif Aim
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -301,31 +301,54 @@ local function updateAimbot()
 end
 
 -- ==============================================
--- PANEL (Sürüklenebilir, 2 Sayfa)
+-- GELİŞMİŞ PANEL (Şık Tasarım)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
+    gui.ResetOnSpawn = false
 
-    -- Aç/Kapa butonu
+    -- Aç/Kapa butonu (Sağ üst)
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0, 50, 0, 50)
-    openBtn.Position = UDim2.new(1, -60, 0, 10)
-    openBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    openBtn.Size = UDim2.new(0, 52, 0, 52)
+    openBtn.Position = UDim2.new(1, -62, 0, 12)
+    openBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
     openBtn.Text = "⚙"
     openBtn.TextColor3 = Color3.new(1, 1, 1)
+    openBtn.TextSize = 26
     openBtn.Font = Enum.Font.SourceSansBold
-    openBtn.TextSize = 24
+    openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Ana panel
+    -- Gölge efekti
+    local shadow = Instance.new("Frame", openBtn)
+    shadow.Size = UDim2.new(1, 0, 1, 0)
+    shadow.Position = UDim2.new(0, 0, 0, 0)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.3
+    shadow.BorderSizePixel = 0
+    shadow.ZIndex = -1
+    Instance.new("UICorner", shadow).CornerRadius = UDim.new(1, 0)
+
+    -- Ana Panel
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 300, 0, 280)
-    panel.Position = UDim2.new(1, -310, 0, 70)
-    panel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-    panel.BackgroundTransparency = 0.08
+    panel.Size = UDim2.new(0, 320, 0, 340)
+    panel.Position = UDim2.new(1, -335, 0, 75)
+    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
+    panel.BackgroundTransparency = 0.05
+    panel.BorderSizePixel = 0
     panel.Visible = false
-    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 14)
+
+    -- Panel gölgesi (iç)
+    local innerShadow = Instance.new("Frame", panel)
+    innerShadow.Size = UDim2.new(1, 0, 1, 0)
+    innerShadow.Position = UDim2.new(0, 0, 0, 0)
+    innerShadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    innerShadow.BackgroundTransparency = 0.5
+    innerShadow.BorderSizePixel = 0
+    innerShadow.ZIndex = -1
+    Instance.new("UICorner", innerShadow).CornerRadius = UDim.new(0, 14)
 
     -- Panel sürükleme
     local drag, dragStart, startPos = false, nil, nil
@@ -342,29 +365,63 @@ local function createPanel()
         end
     end)
 
-    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+    -- Başlık çubuğu
+    local titleBar = Instance.new("Frame", panel)
+    titleBar.Size = UDim2.new(1, 0, 0, 38)
+    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    titleBar.BorderSizePixel = 0
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
+    -- Sadece üst köşeleri yuvarlat
+    local corner = Instance.new("UICorner", titleBar)
+    corner.CornerRadius = UDim.new(0, 14)
 
-    -- Başlık
-    local title = Instance.new("TextLabel", panel)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    local title = Instance.new("TextLabel", titleBar)
+    title.Size = UDim2.new(1, 0, 1, 0)
+    title.BackgroundTransparency = 1
     title.Text = "⚡ MM2 HACK"
     title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextSize = 18
     title.Font = Enum.Font.SourceSansBold
-    title.TextSize = 16
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Position = UDim2.new(0, 14, 0, 0)
 
-    -- Kategori butonları
-    local function createCategoryBtn(name, y, page)
-        local btn = Instance.new("TextButton", panel)
-        btn.Size = UDim2.new(0, 80, 0, 32)
-        btn.Position = UDim2.new(0, 10, 0, y)
-        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    -- Kapatma butonu (X)
+    local closeBtn = Instance.new("TextButton", titleBar)
+    closeBtn.Size = UDim2.new(0, 34, 0, 34)
+    closeBtn.Position = UDim2.new(1, -38, 0, 2)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(180, 180, 200)
+    closeBtn.TextSize = 18
+    closeBtn.Font = Enum.Font.SourceSansBold
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Activated:Connect(function() panel.Visible = false end)
+
+    -- Kategori butonları (Sekmeler)
+    local tabFrame = Instance.new("Frame", panel)
+    tabFrame.Size = UDim2.new(1, 0, 0, 38)
+    tabFrame.Position = UDim2.new(0, 0, 0, 38)
+    tabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
+    tabFrame.BorderSizePixel = 0
+
+    local activeTab = nil
+    local function createTab(name, x, page)
+        local btn = Instance.new("TextButton", tabFrame)
+        btn.Size = UDim2.new(0.5, 0, 1, 0)
+        btn.Position = UDim2.new(x, 0, 0, 0)
+        btn.BackgroundTransparency = 1
         btn.Text = name
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Font = Enum.Font.SourceSansBold
+        btn.TextColor3 = Color3.fromRGB(180, 180, 200)
         btn.TextSize = 14
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.BorderSizePixel = 0
+
         btn.Activated:Connect(function()
+            if activeTab then activeTab.BackgroundTransparency = 1 activeTab.TextColor3 = Color3.fromRGB(180, 180, 200) end
+            btn.BackgroundTransparency = 0.2
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            activeTab = btn
+
             for _, child in ipairs(panel:GetChildren()) do
                 if child:IsA("Frame") and child.Name == "Page" then
                     child.Visible = false
@@ -372,56 +429,71 @@ local function createPanel()
             end
             page.Visible = true
         end)
+
+        -- İlk sekmeyi aktif yap
+        if x == 0 then
+            btn.BackgroundTransparency = 0.2
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            activeTab = btn
+        end
     end
 
     -- Sayfa oluşturucu
     local function createPage()
         local page = Instance.new("Frame", panel)
         page.Name = "Page"
-        page.Size = UDim2.new(1, -20, 0, 180)
-        page.Position = UDim2.new(0, 10, 0, 80)
+        page.Size = UDim2.new(1, -20, 0, 224)
+        page.Position = UDim2.new(0, 10, 0, 78)
         page.BackgroundTransparency = 1
         page.Visible = false
         return page
     end
 
-    -- Toggle oluşturucu
+    -- Toggle oluşturucu (Şık)
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(1, -10, 0, 28)
+        btn.Size = UDim2.new(1, -10, 0, 36)
         btn.Position = UDim2.new(0, 5, 0, yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
+        btn.BackgroundTransparency = 0.2
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
         btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.TextSize = 13
         btn.Font = Enum.Font.SourceSans
-        btn.TextSize = 12
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        btn.BorderSizePixel = 0
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
         local toggled = default
         btn.Activated:Connect(function()
             toggled = not toggled
             btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
             btn.BackgroundColor3 = toggled and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
+            btn.BackgroundTransparency = 0.2
             callback(toggled)
         end)
     end
 
     -- ESP Sayfası
     local espPage = createPage()
-    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
-    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 36)
-    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 67)
-    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 98)
-    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 129)
+    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 2)
+    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 42)
+    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 82)
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 122)
+    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 162)
 
     -- Şerif Sayfası
     local sheriffPage = createPage()
-    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
+    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 2)
 
-    -- Kategori butonları
-    createCategoryBtn("🔍 ESP", 35, espPage)
-    createCategoryBtn("🔫 Şerif", 70, sheriffPage)
+    -- Sekmeleri oluştur
+    createTab("🔍 ESP", 0, espPage)
+    createTab("🔫 Şerif", 0.5, sheriffPage)
 
+    -- İlk sayfayı göster
     espPage.Visible = true
+
+    -- Açma butonu
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
 -- ==============================================
@@ -444,4 +516,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla paneli aç.")
+print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla.")
