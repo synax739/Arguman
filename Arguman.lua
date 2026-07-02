@@ -1,4 +1,4 @@
--- MM2 - YAN MENÜLÜ PANEL (ESP + Şerif Aim + Speed + Jump)
+-- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (Jump YOK)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,11 +16,9 @@ local cfg = {
     aim_smoothBase = 2.0,
     speed_on = false,
     speed_value = 30,
-    jump_on = false,
     team_check = false
 }
 
-local jumpButton = nil
 local gunESPObjects = {}
 local ESPData = {}
 
@@ -295,65 +293,12 @@ end
 local function applySpeed()
     if LocalPlayer.Character and cfg.speed_on then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value end
+        if hum then hum.WalkSpeed = cfg.speed_value
     end
-end
-LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
-
--- ===== ZIPLAMA BUTONU =====
-local function createJumpButton()
-    if jumpButton then jumpButton:Destroy() end
-    local gui = Instance.new("ScreenGui", game.CoreGui)
-    gui.Name = "JumpButtonGui"
-
-    local btn = Instance.new("TextButton", gui)
-    btn.Size = UDim2.new(0, 80, 0, 80)
-    btn.Position = UDim2.new(1, -100, 0.8, -40)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-    btn.BackgroundTransparency = 0.5
-    btn.Text = "ZIPLA"
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 20
-    btn.Visible = cfg.jump_on
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-
-    local drag, dragStart, startPos = false, nil, nil
-    btn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true dragStart = input.Position startPos = btn.Position
-        end
-    end)
-    btn.InputEnded:Connect(function() drag = false end)
-    btn.InputChanged:Connect(function(input)
-        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local d = input.Position - dragStart
-            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        end
-    end)
-
-    btn.Activated:Connect(function()
-        if not cfg.jump_on then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then return end
-        hum.JumpPower = 16
-        local vel = hrp.Velocity
-        hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
-        if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
-    end)
-
-    jumpButton = btn
-end
-
-local function updateJumpButton()
-    if jumpButton then jumpButton.Visible = cfg.jump_on end
 end
 
 -- ==============================================
--- YAN MENÜLÜ PANEL
+-- PANEL (Yan Menü - ESP, Şerif, Katil)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -509,17 +454,45 @@ local function createPanel()
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası (Speed + Jump EKLENDİ)
+    -- Katil Sayfası (SADECE SPEED)
     local killerPage = createPage()
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        if v then applySpeed() else
+        if v then applySpeed()
+        else
             if LocalPlayer.Character then
                 local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
                 if hum then hum.WalkSpeed = 16 end
             end
         end
     end, 5)
-    addToggle(killerPage, "Sınırsız Zıpla", cfg.jump_on, function(v)
-        cfg.jump_on = v
-        i
+
+    -- Menü butonları
+    createMenuButton("🔍 ESP", 10, espPage)
+    createMenuButton("🔫 Şerif", 55, sheriffPage)
+    createMenuButton("🔪 Katil", 100, killerPage)
+
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+end
+
+-- ===== BAŞLAT =====
+Players.PlayerRemoving:Connect(function(p) 
+    if ESPData[p] then 
+        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
+        ESPData[p] = nil 
+    end 
+end)
+
+createPanel()
+wait(0.5)
+applySpeed()
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        updateESP()
+        updateGunESP()
+        updateAimbot()
+    end)
+end)
+
+print("🔪 MM2 Yüklendi! Speed Hack eklendi (Jump yok).")
