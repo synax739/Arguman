@@ -1,10 +1,9 @@
--- MM2 FULL - Gelişmiş Panel + ESP + Gun ESP + Şerif Aim
+-- MM2 FULL - Dikdörtgen Panel + ESP + Gun ESP + Şerif Aim + Speed + Jump
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
 
 local cfg = {
     esp_on = true,
@@ -15,9 +14,13 @@ local cfg = {
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
+    speed_on = false,
+    speed_value = 30,
+    jump_on = false,
     team_check = false
 }
 
+local jumpButton = nil
 local gunESPObjects = {}
 local ESPData = {}
 
@@ -301,124 +304,162 @@ local function updateAimbot()
 end
 
 -- ==============================================
--- GELİŞMİŞ PANEL (Şık Tasarım)
+-- SPEED HACK
+-- ==============================================
+local function applySpeed()
+    if LocalPlayer.Character and cfg.speed_on then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = cfg.speed_value end
+    end
+end
+LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
+
+-- ==============================================
+-- ZIPLAMA BUTONU (Sürüklenebilir)
+-- ==============================================
+local function createJumpButton()
+    if jumpButton then jumpButton:Destroy() end
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "JumpButtonGui"
+
+    local btn = Instance.new("TextButton", gui)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(1, -100, 0.8, -40)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    btn.BackgroundTransparency = 0.5
+    btn.Text = "ZIPLA"
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 20
+    btn.Visible = cfg.jump_on
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local drag, dragStart, startPos = false, nil, nil
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true dragStart = input.Position startPos = btn.Position
+        end
+    end)
+    btn.InputEnded:Connect(function() drag = false end)
+    btn.InputChanged:Connect(function(input)
+        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local d = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+
+    btn.Activated:Connect(function()
+        if not cfg.jump_on then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp or not hum then return end
+        hum.JumpPower = 16
+        local vel = hrp.Velocity
+        hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
+        if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
+    end)
+
+    jumpButton = btn
+end
+
+local function updateJumpButton()
+    if jumpButton then jumpButton.Visible = cfg.jump_on end
+end
+
+-- ==============================================
+-- PANEL (Dikdörtgen, 3 Kategori)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     gui.ResetOnSpawn = false
 
-    -- Aç/Kapa butonu (Sağ üst)
+    -- Aç/Kapa butonu
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0, 52, 0, 52)
-    openBtn.Position = UDim2.new(1, -62, 0, 12)
+    openBtn.Size = UDim2.new(0, 50, 0, 50)
+    openBtn.Position = UDim2.new(1, -60, 0, 10)
     openBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
     openBtn.Text = "⚙"
     openBtn.TextColor3 = Color3.new(1, 1, 1)
-    openBtn.TextSize = 26
+    openBtn.TextSize = 24
     openBtn.Font = Enum.Font.SourceSansBold
     openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Gölge efekti
-    local shadow = Instance.new("Frame", openBtn)
-    shadow.Size = UDim2.new(1, 0, 1, 0)
-    shadow.Position = UDim2.new(0, 0, 0, 0)
-    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.BackgroundTransparency = 0.3
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = -1
-    Instance.new("UICorner", shadow).CornerRadius = UDim.new(1, 0)
-
-    -- Ana Panel
+    -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 320, 0, 340)
-    panel.Position = UDim2.new(1, -335, 0, 75)
+    panel.Size = UDim2.new(0, 280, 0, 360)
+    panel.Position = UDim2.new(1, -295, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
     panel.BorderSizePixel = 0
     panel.Visible = false
-    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 14)
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
 
-    -- Panel gölgesi (iç)
-    local innerShadow = Instance.new("Frame", panel)
-    innerShadow.Size = UDim2.new(1, 0, 1, 0)
-    innerShadow.Position = UDim2.new(0, 0, 0, 0)
-    innerShadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    innerShadow.BackgroundTransparency = 0.5
-    innerShadow.BorderSizePixel = 0
-    innerShadow.ZIndex = -1
-    Instance.new("UICorner", innerShadow).CornerRadius = UDim.new(0, 14)
+    -- Sürükleme (DÜZELTİLDİ)
+    local dragging = false
+    local dragInput = nil
+    local dragStart = nil
+    local startPos = nil
 
-    -- Panel sürükleme
-    local drag, dragStart, startPos = false, nil, nil
     panel.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true dragStart = input.Position startPos = panel.Position
+            dragging = true
+            dragStart = input.Position
+            startPos = panel.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
-    panel.InputEnded:Connect(function() drag = false end)
+
     panel.InputChanged:Connect(function(input)
-        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local d = input.Position - dragStart
-            panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 
-    -- Başlık çubuğu
-    local titleBar = Instance.new("Frame", panel)
-    titleBar.Size = UDim2.new(1, 0, 0, 38)
-    titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-    titleBar.BorderSizePixel = 0
-    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
-    -- Sadece üst köşeleri yuvarlat
-    local corner = Instance.new("UICorner", titleBar)
-    corner.CornerRadius = UDim.new(0, 14)
-
-    local title = Instance.new("TextLabel", titleBar)
-    title.Size = UDim2.new(1, 0, 1, 0)
-    title.BackgroundTransparency = 1
+    -- Başlık
+    local title = Instance.new("TextLabel", panel)
+    title.Size = UDim2.new(1, 0, 0, 35)
+    title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
     title.Text = "⚡ MM2 HACK"
     title.TextColor3 = Color3.new(1, 1, 1)
-    title.TextSize = 18
+    title.TextSize = 17
     title.Font = Enum.Font.SourceSansBold
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Position = UDim2.new(0, 14, 0, 0)
+    title.BorderSizePixel = 0
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Kapatma butonu (X)
-    local closeBtn = Instance.new("TextButton", titleBar)
-    closeBtn.Size = UDim2.new(0, 34, 0, 34)
-    closeBtn.Position = UDim2.new(1, -38, 0, 2)
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(180, 180, 200)
-    closeBtn.TextSize = 18
-    closeBtn.Font = Enum.Font.SourceSansBold
-    closeBtn.BorderSizePixel = 0
-    closeBtn.Activated:Connect(function() panel.Visible = false end)
-
-    -- Kategori butonları (Sekmeler)
+    -- Kategori butonları (Dikdörtgen içinde yan yana)
     local tabFrame = Instance.new("Frame", panel)
-    tabFrame.Size = UDim2.new(1, 0, 0, 38)
-    tabFrame.Position = UDim2.new(0, 0, 0, 38)
+    tabFrame.Size = UDim2.new(1, 0, 0, 40)
+    tabFrame.Position = UDim2.new(0, 0, 0, 35)
     tabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
     tabFrame.BorderSizePixel = 0
 
     local activeTab = nil
     local function createTab(name, x, page)
         local btn = Instance.new("TextButton", tabFrame)
-        btn.Size = UDim2.new(0.5, 0, 1, 0)
+        btn.Size = UDim2.new(0.333, 0, 1, 0)
         btn.Position = UDim2.new(x, 0, 0, 0)
         btn.BackgroundTransparency = 1
         btn.Text = name
-        btn.TextColor3 = Color3.fromRGB(180, 180, 200)
-        btn.TextSize = 14
+        btn.TextColor3 = Color3.fromRGB(160, 160, 190)
+        btn.TextSize = 13
         btn.Font = Enum.Font.SourceSansBold
         btn.BorderSizePixel = 0
 
         btn.Activated:Connect(function()
-            if activeTab then activeTab.BackgroundTransparency = 1 activeTab.TextColor3 = Color3.fromRGB(180, 180, 200) end
-            btn.BackgroundTransparency = 0.2
+            if activeTab then 
+                activeTab.BackgroundTransparency = 1 
+                activeTab.TextColor3 = Color3.fromRGB(160, 160, 190)
+            end
+            btn.BackgroundTransparency = 0.15
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             activeTab = btn
 
@@ -430,9 +471,8 @@ local function createPanel()
             page.Visible = true
         end)
 
-        -- İlk sekmeyi aktif yap
         if x == 0 then
-            btn.BackgroundTransparency = 0.2
+            btn.BackgroundTransparency = 0.15
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             activeTab = btn
         end
@@ -442,20 +482,20 @@ local function createPanel()
     local function createPage()
         local page = Instance.new("Frame", panel)
         page.Name = "Page"
-        page.Size = UDim2.new(1, -20, 0, 224)
+        page.Size = UDim2.new(1, -20, 0, 240)
         page.Position = UDim2.new(0, 10, 0, 78)
         page.BackgroundTransparency = 1
         page.Visible = false
         return page
     end
 
-    -- Toggle oluşturucu (Şık)
+    -- Toggle oluşturucu
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(1, -10, 0, 36)
+        btn.Size = UDim2.new(1, -10, 0, 34)
         btn.Position = UDim2.new(0, 5, 0, yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
-        btn.BackgroundTransparency = 0.2
+        btn.BackgroundTransparency = 0.15
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
         btn.TextColor3 = Color3.new(1, 1, 1)
         btn.TextSize = 13
@@ -468,7 +508,7 @@ local function createPanel()
             toggled = not toggled
             btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
             btn.BackgroundColor3 = toggled and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
-            btn.BackgroundTransparency = 0.2
+            btn.BackgroundTransparency = 0.15
             callback(toggled)
         end)
     end
@@ -476,44 +516,7 @@ local function createPanel()
     -- ESP Sayfası
     local espPage = createPage()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 2)
-    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 42)
-    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 82)
-    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 122)
-    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 162)
-
-    -- Şerif Sayfası
-    local sheriffPage = createPage()
-    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 2)
-
-    -- Sekmeleri oluştur
-    createTab("🔍 ESP", 0, espPage)
-    createTab("🔫 Şerif", 0.5, sheriffPage)
-
-    -- İlk sayfayı göster
-    espPage.Visible = true
-
-    -- Açma butonu
-    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
-end
-
--- ==============================================
--- BAŞLAT
--- ==============================================
-Players.PlayerRemoving:Connect(function(p) 
-    if ESPData[p] then 
-        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
-        ESPData[p] = nil 
-    end 
-end)
-
-createPanel()
-
-RunService.RenderStepped:Connect(function()
-    pcall(function()
-        updateESP()
-        updateGunESP()
-        updateAimbot()
-    end)
-end)
-
-print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla.")
+    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 40)
+    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 78)
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 116)
+    addToggle(espPage, "Takım Kontrolü", cfg
