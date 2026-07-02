@@ -1,5 +1,4 @@
--- MM2 GUN ESP - GELİŞMİŞ (Ölünce düşen silahları da gösterir)
-
+-- // MM2 GELİŞMİŞ GUN ESP - Yere Düşen Silahları da Gösterir
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -7,111 +6,100 @@ local LocalPlayer = Players.LocalPlayer
 
 local gunESPObjects = {}
 
-local function newDrawing(t)
-    local ok, d = pcall(function() return Drawing.new(t) end)
-    return ok and d or nil
+local function newDrawing(type)
+    local success, drawing = pcall(function() return Drawing.new(type) end)
+    return success and drawing or nil
 end
 
-local function isInFront(pos)
+local function isOnScreenAndInFront(position)
+    local _, onScreen = Camera:WorldToViewportPoint(position)
     local camPos = Camera.CFrame.Position
-    return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
+    local toTarget = (position - camPos).Unit
+    return onScreen and Camera.CFrame.LookVector:Dot(toTarget) > 0.1
 end
 
-local function findGunPart(tool)
-    -- Önce Handle dene
-    local part = tool:FindFirstChild("Handle")
-    if part then return part end
+local function findGunRoot(tool)
+    -- En iyi root part bulma
+    if tool:FindFirstChild("Handle") then return tool.Handle end
+    if tool:FindFirstChild("PrimaryPart") then return tool.PrimaryPart end
+    if tool:FindFirstChild("Gun") then return tool.Gun end
     
-    -- Handle yoksa, PrimaryPart veya başka bir parça bul
-    part = tool:FindFirstChild("PrimaryPart")
-    if part then return part end
-    
-    -- Hiçbiri yoksa, tool'un altındaki ilk BasePart'i al
-    for _, child in ipairs(tool:GetChildren()) do
-        if child:IsA("BasePart") then
+    for _, child in ipairs(tool:GetDescendants()) do
+        if child:IsA("BasePart") and child.Transparency < 1 then
             return child
         end
     end
-    return nil
+    return tool:FindFirstChildWhichIsA("BasePart")
 end
 
 local function updateGunESP()
-    -- Eski objeleri temizle
-    for _, obj in pairs(gunESPObjects) do
-        pcall(function() obj.box:Remove() end)
-        pcall(function() obj.text:Remove() end)
+    -- Eski ESP'leri temizle
+    for obj, data in pairs(gunESPObjects) do
+        if data.box then data.box:Remove() end
+        if data.text then data.text:Remove() end
     end
     gunESPObjects = {}
 
-    -- workspace'teki tüm Tool'ları tara
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Tool") then
-            local toolName = obj.Name:lower()
-            -- "gun" içeren veya "Gun" olan tüm silahları al
-            if toolName == "gun" or toolName:find("gun") or toolName:find("sheriff") or toolName:find("pistol") or toolName:find("revolver") then
+    -- Workspace'teki tüm Tool'ları tara
+    for _, tool in ipairs(workspace:GetDescendants()) do
+        if tool:IsA("Tool") then
+            local nameLower = tool.Name:lower()
+            
+            -- MM2 silahlarını tespit et
+            if nameLower:find("gun") or nameLower == "pistol" or nameLower == "revolver" or 
+               nameLower:find("sheriff") or nameLower:find("murderer") or nameLower:find("knife") then
                 
-                -- Silahın bir oyuncunun elinde olup olmadığını kontrol et
+                -- Oyuncunun elinde mi diye kontrol et
                 local isHeld = false
-                local parent = obj.Parent
-                if parent and parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
-                    isHeld = true  -- Bir oyuncunun elinde
+                local currentParent = tool.Parent
+                while currentParent do
+                    if currentParent:FindFirstChildOfClass("Humanoid") then
+                        isHeld = true
+                        break
+                    end
+                    currentParent = currentParent.Parent
                 end
-                
-                -- Eğer oyuncunun elinde değilse (yere düşmüş veya yerde duruyorsa)
+
                 if not isHeld then
-                    local part = findGunPart(obj)
-                    if part then
-                        local pos = part.Position
-                        if pos ~= pos then continue end
+                    local rootPart = findGunRoot(tool)
+                    if rootPart then
+                        local pos = rootPart.Position
                         local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-                        if onScreen and isInFront(pos) then
+
+                        if onScreen and isOnScreenAndInFront(pos) then
+                            -- Box
                             local box = newDrawing("Square")
-                            local text = newDrawing("Text")
                             if box then
-                                box.Thickness = 2
+                                box.Thickness = 2.5
                                 box.Filled = false
-                                box.Color = Color3.fromRGB(255, 200, 0)
-                                box.Position = Vector2.new(screenPos.X - 20, screenPos.Y - 20)
-                                box.Size = Vector2.new(40, 40)
+                                box.Color = Color3.fromRGB(255, 215, 0)
+                                box.Transparency = 1
+                                box.Position = Vector2.new(screenPos.X - 25, screenPos.Y - 25)
+                                box.Size = Vector2.new(50, 50)
                                 box.Visible = true
                             end
+
+                            -- Text
+                            local text = newDrawing("Text")
                             if text then
-                                text.Size = 14
+                                text.Size = 15
                                 text.Center = true
                                 text.Outline = true
-                                text.Color = Color3.fromRGB(255, 200, 0)
-                                text.Text = "🔫 " .. obj.Name
-                                text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
+                                text.Color = Color3.fromRGB(255, 215, 0)
+                                text.Text = "🔫 " .. tool.Name
+                                text.Position = Vector2.new(screenPos.X, screenPos.Y - 40)
                                 text.Visible = true
                             end
-                            gunESPObjects[obj] = {box = box, text = text}
+
+                            gunESPObjects[tool] = {box = box, text = text}
                         end
                     end
                 end
             end
         end
     end
-    
-    -- Silahın oyuncuya ait olup olmadığını kontrol et
-    -- Bazı oyunlar silahı karakterin içine atar, onları da filtrele
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" then
-            local parent = obj.Parent
-            if parent and parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
-                -- Oyuncunun elinde, ESP'den çıkar
-                if gunESPObjects[obj] then
-                    if gunESPObjects[obj].box then gunESPObjects[obj].box:Remove() end
-                    if gunESPObjects[obj].text then gunESPObjects[obj].text:Remove() end
-                    gunESPObjects[obj] = nil
-                end
-            end
-        end
-    end
 end
 
--- Her kare güncelle
-RunService.RenderStepped:Connect(function()
-    updateGunESP()
-end)
+RunService.RenderStepped:Connect(updateGunESP)
 
-print("GUN ESP GELISMIS AKTIF! Yerdeki tum silahlari gostermeli.")
+print("✅ MM2 Gelişmiş Gun ESP Aktif! Yere düşen silahlar da gözükecek.")
