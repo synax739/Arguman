@@ -1,188 +1,122 @@
--- MM2 SADE TARAYICI - Sadece Tool ve Gun içerenleri gösterir
--- Kaydırma çalışır, liste düzenli
+-- MM2 GUN ESP - GunDrop'u Gösterir (Şerif ölünce yere düşen silah)
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
--- GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SimpleScanner"
-screenGui.Parent = game.CoreGui
+local gunESPObjects = {}
+local cfg = { gun_esp = true }
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
-mainFrame.BackgroundTransparency = 0.9
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-
--- Başlık
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "🔍 TARAYICI (0)"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 16
-title.Font = Enum.Font.SourceSansBold
-title.Parent = mainFrame
-
--- Test butonu
-local testBtn = Instance.new("TextButton")
-testBtn.Size = UDim2.new(0, 100, 0, 35)
-testBtn.Position = UDim2.new(0.5, -50, 0, 42)
-testBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
-testBtn.Text = "🔍 TARA"
-testBtn.TextColor3 = Color3.new(1, 1, 1)
-testBtn.TextSize = 16
-testBtn.Font = Enum.Font.SourceSansBold
-testBtn.Parent = mainFrame
-Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 8)
-
--- Sonuç listesi
-local resultFrame = Instance.new("ScrollingFrame")
-resultFrame.Size = UDim2.new(1, -16, 0, 300)
-resultFrame.Position = UDim2.new(0, 8, 0, 85)
-resultFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-resultFrame.BackgroundTransparency = 0.8
-resultFrame.BorderSizePixel = 0
-resultFrame.Parent = mainFrame
-Instance.new("UICorner", resultFrame).CornerRadius = UDim.new(0, 8)
-
-local resultLayout = Instance.new("UIListLayout")
-resultLayout.Padding = UDim.new(0, 3)
-resultLayout.Parent = resultFrame
-
-local function clearResults()
-    for _, child in ipairs(resultFrame:GetChildren()) do
-        if child:IsA("TextLabel") then
-            child:Destroy()
-        end
-    end
+local function newDrawing(t)
+    local ok, d = pcall(function() return Drawing.new(t) end)
+    return ok and d or nil
 end
 
-local function scan()
-    clearResults()
-    
-    local tools = {}
-    local gunParts = {}
-    
-    -- 1. Tüm Tool'ları bul
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Tool") then
-            local parent = obj.Parent
-            local isHeld = false
-            if parent and parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
-                isHeld = true
-            end
-            if not isHeld then
-                table.insert(tools, {
-                    name = obj.Name,
-                    parent = parent and parent.Name or "YOK",
-                    hasHandle = obj:FindFirstChild("Handle") ~= nil
-                })
-            end
+local function isInFront(pos)
+    local camPos = Camera.CFrame.Position
+    return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
+end
+
+local function updateGunESP()
+    if not cfg.gun_esp then
+        for _, obj in pairs(gunESPObjects) do
+            pcall(function() obj.box:Remove() end)
+            pcall(function() obj.text:Remove() end)
         end
-    end
-    
-    -- 2. İsminde "gun" geçen BasePart'ları bul (Tool değilse)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and not obj:IsA("Tool") then
-            local name = obj.Name:lower()
-            if name:find("gun") or name:find("silah") or name:find("sheriff") or name:find("pistol") then
-                local parent = obj.Parent
-                local isHeld = false
-                if parent and parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
-                    isHeld = true
-                end
-                if not isHeld then
-                    table.insert(gunParts, {
-                        name = obj.Name,
-                        class = obj.ClassName,
-                        parent = parent and parent.Name or "YOK"
-                    })
-                end
-            end
-        end
-    end
-    
-    -- Sonuçları göster
-    local total = #tools + #gunParts
-    title.Text = "🔍 TARAYICI (" .. total .. ")"
-    
-    if total == 0 then
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 0, 30)
-        label.BackgroundTransparency = 1
-        label.Text = "❌ Yerde silah yok"
-        label.TextColor3 = Color3.fromRGB(255, 200, 100)
-        label.TextSize = 14
-        label.Font = Enum.Font.SourceSans
-        label.Parent = resultFrame
+        gunESPObjects = {}
         return
     end
-    
-    -- Tools
-    if #tools > 0 then
-        local header = Instance.new("TextLabel")
-        header.Size = UDim2.new(1, 0, 0, 22)
-        header.BackgroundTransparency = 1
-        header.Text = "🔫 TOOL (" .. #tools .. ")"
-        header.TextColor3 = Color3.fromRGB(100, 255, 200)
-        header.TextSize = 13
-        header.Font = Enum.Font.SourceSansBold
-        header.Parent = resultFrame
-        
-        for _, t in ipairs(tools) do
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 0, 18)
-            label.BackgroundTransparency = 1
-            label.Text = "  " .. t.name .. " | " .. t.parent
-            if t.hasHandle then
-                label.Text = label.Text .. " ✅"
-            end
-            label.TextColor3 = Color3.fromRGB(220, 220, 255)
-            label.TextSize = 11
-            label.Font = Enum.Font.SourceSans
-            label.TextXAlignment = Enum.TextXAlignment.Left
-            label.Parent = resultFrame
-        end
+
+    -- Eski objeleri temizle (sadece görünmeyenleri değil, hepsini)
+    for _, obj in pairs(gunESPObjects) do
+        pcall(function() obj.box:Remove() end)
+        pcall(function() obj.text:Remove() end)
     end
-    
-    -- Gun Parts
-    if #gunParts > 0 then
-        local header = Instance.new("TextLabel")
-        header.Size = UDim2.new(1, 0, 0, 22)
-        header.BackgroundTransparency = 1
-        header.Text = "📦 GUN PARÇALARI (" .. #gunParts .. ")"
-        header.TextColor3 = Color3.fromRGB(255, 200, 100)
-        header.TextSize = 13
-        header.Font = Enum.Font.SourceSansBold
-        header.Parent = resultFrame
-        
-        for _, p in ipairs(gunParts) do
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 0, 18)
-            label.BackgroundTransparency = 1
-            label.Text = "  " .. p.name .. " (" .. p.class .. ") | " .. p.parent
-            label.TextColor3 = Color3.fromRGB(255, 220, 180)
-            label.TextSize = 11
-            label.Font = Enum.Font.SourceSans
-            label.TextXAlignment = Enum.TextXAlignment.Left
-            label.Parent = resultFrame
+    gunESPObjects = {}
+
+    -- Yerdeki GunDrop'ları tara
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        -- GunDrop veya GunDisplay veya isminde Gun geçen Part'ları bul
+        if obj:IsA("BasePart") and (obj.Name == "GunDrop" or obj.Name == "GunDisplay" or obj.Name:find("Gun")) then
+            -- Oyuncunun elinde olup olmadığını kontrol et (Tool olarak)
+            local isHeld = false
+            local parent = obj.Parent
+            if parent then
+                -- Eğer parent bir Tool ise ve Tool bir oyuncunun elindeyse
+                if parent:IsA("Tool") then
+                    local toolParent = parent.Parent
+                    if toolParent and toolParent:IsA("Model") and toolParent:FindFirstChild("Humanoid") then
+                        isHeld = true
+                    end
+                end
+                -- Eğer doğrudan bir oyuncunun içindeyse
+                if parent:IsA("Model") and parent:FindFirstChild("Humanoid") then
+                    isHeld = true
+                end
+            end
+            
+            -- Eğer elinde değilse ve yerdeyse göster
+            if not isHeld then
+                local pos = obj.Position
+                if pos ~= pos then continue end
+                local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+                if onScreen and isInFront(pos) then
+                    local box = newDrawing("Square")
+                    local text = newDrawing("Text")
+                    
+                    if box then
+                        box.Thickness = 2
+                        box.Filled = false
+                        box.Color = Color3.fromRGB(255, 200, 0)
+                        box.Position = Vector2.new(screenPos.X - 20, screenPos.Y - 20)
+                        box.Size = Vector2.new(40, 40)
+                        box.Visible = true
+                    end
+                    
+                    if text then
+                        text.Size = 14
+                        text.Center = true
+                        text.Outline = true
+                        text.Color = Color3.fromRGB(255, 200, 0)
+                        text.Text = "🔫 " .. obj.Name
+                        text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
+                        text.Visible = true
+                    end
+                    
+                    gunESPObjects[obj] = {box = box, text = text}
+                end
+            end
         end
     end
 end
 
-testBtn.MouseButton1Click:Connect(function()
-    scan()
+-- Her kare güncelle
+RunService.RenderStepped:Connect(function()
+    updateGunESP()
 end)
 
--- Otomatik tarama
-wait(0.5)
-scan()
+-- Panel (basit)
+local function createPanel()
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "GunESP_Panel"
+    
+    local btn = Instance.new("TextButton", gui)
+    btn.Size = UDim2.new(0, 100, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, 10)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    btn.Text = "GUN ESP: AÇIK"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    btn.MouseButton1Click:Connect(function()
+        cfg.gun_esp = not cfg.gun_esp
+        btn.Text = cfg.gun_esp and "GUN ESP: AÇIK" or "GUN ESP: KAPALI"
+        btn.BackgroundColor3 = cfg.gun_esp and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+    end)
+end
 
-print("🔍 Tarayıcı aktif! 'TARA' butonuna bas.")
+createPanel()
+print("🔫 GUN ESP AKTIF! Yerdeki GunDrop ve GunDisplay'leri gosterir.")
