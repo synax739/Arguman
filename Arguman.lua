@@ -1,4 +1,4 @@
--- MM2 FULL - Dikdörtgen Panel + ESP + Gun ESP + Şerif Aim + Speed + Jump
+-- MM2 FULL - Sadece Panel (ESP + Şerif Aim) - Speed/Jump YOK
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,13 +14,9 @@ local cfg = {
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
-    speed_on = false,
-    speed_value = 30,
-    jump_on = false,
     team_check = false
 }
 
-local jumpButton = nil
 local gunESPObjects = {}
 local ESPData = {}
 
@@ -304,72 +300,7 @@ local function updateAimbot()
 end
 
 -- ==============================================
--- SPEED HACK
--- ==============================================
-local function applySpeed()
-    if LocalPlayer.Character and cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value end
-    end
-end
-LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
-
--- ==============================================
--- ZIPLAMA BUTONU (Sürüklenebilir)
--- ==============================================
-local function createJumpButton()
-    if jumpButton then jumpButton:Destroy() end
-    local gui = Instance.new("ScreenGui", game.CoreGui)
-    gui.Name = "JumpButtonGui"
-
-    local btn = Instance.new("TextButton", gui)
-    btn.Size = UDim2.new(0, 80, 0, 80)
-    btn.Position = UDim2.new(1, -100, 0.8, -40)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-    btn.BackgroundTransparency = 0.5
-    btn.Text = "ZIPLA"
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 20
-    btn.Visible = cfg.jump_on
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-
-    local drag, dragStart, startPos = false, nil, nil
-    btn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true dragStart = input.Position startPos = btn.Position
-        end
-    end)
-    btn.InputEnded:Connect(function() drag = false end)
-    btn.InputChanged:Connect(function(input)
-        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local d = input.Position - dragStart
-            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-        end
-    end)
-
-    btn.Activated:Connect(function()
-        if not cfg.jump_on then return end
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not hrp or not hum then return end
-        hum.JumpPower = 16
-        local vel = hrp.Velocity
-        hrp.Velocity = Vector3.new(vel.X, 50, vel.Z)
-        if hum.FloorMaterial ~= Enum.Material.Air then hum.Jump = true end
-    end)
-
-    jumpButton = btn
-end
-
-local function updateJumpButton()
-    if jumpButton then jumpButton.Visible = cfg.jump_on end
-end
-
--- ==============================================
--- PANEL (Dikdörtgen, 3 Kategori)
+-- PANEL (Dikdörtgen, 3 Kategori - Sadece ESP + Şerif)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -390,7 +321,7 @@ local function createPanel()
 
     -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 280, 0, 360)
+    panel.Size = UDim2.new(0, 280, 0, 320)
     panel.Position = UDim2.new(1, -295, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
@@ -435,7 +366,7 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Kategori butonları (Dikdörtgen içinde yan yana)
+    -- Kategori butonları (3 adet - ESP, Şerif, Katil)
     local tabFrame = Instance.new("Frame", panel)
     tabFrame.Size = UDim2.new(1, 0, 0, 40)
     tabFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -482,7 +413,7 @@ local function createPanel()
     local function createPage()
         local page = Instance.new("Frame", panel)
         page.Name = "Page"
-        page.Size = UDim2.new(1, -20, 0, 240)
+        page.Size = UDim2.new(1, -20, 0, 200)
         page.Position = UDim2.new(0, 10, 0, 78)
         page.BackgroundTransparency = 1
         page.Visible = false
@@ -519,4 +450,52 @@ local function createPanel()
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 40)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 78)
     addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 116)
-    addToggle(espPage, "Takım Kontrolü", cfg
+    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 154)
+
+    -- Şerif Sayfası
+    local sheriffPage = createPage()
+    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 2)
+
+    -- Katil Sayfası (BOŞ - sadece placeholder)
+    local killerPage = createPage()
+    local placeholder = Instance.new("TextLabel", killerPage)
+    placeholder.Size = UDim2.new(1, 0, 1, 0)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "🔜 Yakında..."
+    placeholder.TextColor3 = Color3.fromRGB(150, 150, 180)
+    placeholder.TextSize = 18
+    placeholder.Font = Enum.Font.SourceSans
+    placeholder.TextScaled = true
+
+    -- Kategori butonları
+    createTab("🔍 ESP", 0, espPage)
+    createTab("🔫 Şerif", 0.333, sheriffPage)
+    createTab("🔪 Katil", 0.666, killerPage)
+
+    -- İlk sayfayı göster
+    espPage.Visible = true
+
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+end
+
+-- ==============================================
+-- BAŞLAT
+-- ==============================================
+Players.PlayerRemoving:Connect(function(p) 
+    if ESPData[p] then 
+        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
+        ESPData[p] = nil 
+    end 
+end)
+
+createPanel()
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        updateESP()
+        updateGunESP()
+        updateAimbot()
+    end)
+end)
+
+print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla.")
