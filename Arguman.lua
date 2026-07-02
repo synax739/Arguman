@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: Panel + Zıplama Butonu (Sürüklenebilir) - DÜZELTİLDİ
+-- // Delta Mobil – MM2: Panel + Zıplama Butonu + GUN ESP (yere düşen silahlar)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,6 +11,7 @@ local cfg = {
     esp_box = true,
     esp_dist = true,
     esp_maxDist = 500,
+    gun_esp = true,          -- <--- YENİ: yerdeki silahları göster
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
@@ -21,6 +22,7 @@ local cfg = {
 }
 
 local jumpButton = nil
+local gunESPObjects = {}   -- Yerdeki silahlar için drawing objeleri
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -29,6 +31,9 @@ local ROLE_COLORS = {
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
 
+-- ==============================================
+-- Rol Tespiti
+-- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
@@ -55,6 +60,9 @@ local function getPlayerRole(plr)
     return "Innocent"
 end
 
+-- ==============================================
+-- ESP (Oyuncu)
+-- ==============================================
 local ESPData = {}
 
 local function newDrawing(t)
@@ -106,7 +114,7 @@ local function getBox(character)
     }
 end
 
-local function updateESP()
+local function updatePlayerESP()
     local my = LocalPlayer.Character
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
@@ -165,6 +173,88 @@ local function updateESP()
     end
 end
 
+-- ==============================================
+-- YENİ: YERDEKİ SİLAHLARIN ESP'Sİ (GUN ESP)
+-- ==============================================
+local function updateGunESP()
+    if not cfg.gun_esp then
+        -- Tüm gun ESP objelerini temizle
+        for _, obj in pairs(gunESPObjects) do
+            pcall(function() obj.box:Remove() end)
+            pcall(function() obj.text:Remove() end)
+        end
+        gunESPObjects = {}
+        return
+    end
+
+    local guns = {}
+    -- workspace'teki tüm Tool'ları tara
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Tool") and obj.Name == "Gun" then
+            local handle = obj:FindFirstChild("Handle")
+            if handle then
+                table.insert(guns, {tool = obj, handle = handle})
+            end
+        end
+    end
+
+    -- Mevcut objeleri güncelle
+    local processed = {}
+    for _, gun in ipairs(guns) do
+        local pos = gun.handle.Position
+        local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+        if onScreen and isInFront(pos) then
+            if not gunESPObjects[gun.tool] then
+                -- Yeni drawing oluştur
+                local box = newDrawing("Square")
+                local text = newDrawing("Text")
+                if box then
+                    box.Thickness = 2
+                    box.Filled = false
+                    box.Color = Color3.fromRGB(255, 200, 0)
+                end
+                if text then
+                    text.Size = 14
+                    text.Center = true
+                    text.Outline = true
+                    text.Color = Color3.fromRGB(255, 200, 0)
+                    text.Text = "🔫 SİLAH"
+                end
+                gunESPObjects[gun.tool] = {box = box, text = text}
+            end
+            local d = gunESPObjects[gun.tool]
+            if d.box then
+                d.box.Visible = true
+                d.box.Position = Vector2.new(screenPos.X - 20, screenPos.Y - 20)
+                d.box.Size = Vector2.new(40, 40)
+            end
+            if d.text then
+                d.text.Visible = true
+                d.text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
+            end
+            processed[gun.tool] = true
+        else
+            -- Ekranda değilse gizle
+            if gunESPObjects[gun.tool] then
+                if gunESPObjects[gun.tool].box then gunESPObjects[gun.tool].box.Visible = false end
+                if gunESPObjects[gun.tool].text then gunESPObjects[gun.tool].text.Visible = false end
+            end
+        end
+    end
+
+    -- Artık var olmayan silahları temizle
+    for tool, d in pairs(gunESPObjects) do
+        if not processed[tool] then
+            if d.box then d.box:Remove() end
+            if d.text then d.text:Remove() end
+            gunESPObjects[tool] = nil
+        end
+    end
+end
+
+-- ==============================================
+-- ŞERİF AIMBOT
+-- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
     if not myChar then return false end
@@ -217,6 +307,9 @@ local function updateAimbot()
     if target then aimAt(target) end
 end
 
+-- ==============================================
+-- SPEED HACK
+-- ==============================================
 local function applySpeed()
     if LocalPlayer.Character and cfg.speed_on then
         local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -225,6 +318,9 @@ local function applySpeed()
 end
 LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
 
+-- ==============================================
+-- SINIRSIZ ZIPLAMA (Sürüklenebilir Buton)
+-- ==============================================
 local function createJumpButton()
     if jumpButton then jumpButton:Destroy() end
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -256,7 +352,6 @@ local function createJumpButton()
         end
     end)
 
-    -- MOBİL UYUMLU: MouseButton1Click yerine Activated
     btn.Activated:Connect(function()
         if not cfg.jump_on then return end
         local char = LocalPlayer.Character
@@ -277,6 +372,9 @@ local function updateJumpButton()
     if jumpButton then jumpButton.Visible = cfg.jump_on end
 end
 
+-- ==============================================
+-- PANEL (GUN ESP TOGGLE EKLENDİ)
+-- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
@@ -286,7 +384,7 @@ local function createPanel()
     openBtn.TextColor3 = Color3.new(1,1,1) openBtn.Font = Enum.Font.SourceSansBold openBtn.TextSize = 20
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0,280,0,200) panel.Position = UDim2.new(1,-290,0,60)
+    panel.Size = UDim2.new(0,280,0,230) panel.Position = UDim2.new(1,-290,0,60)
     panel.BackgroundColor3 = Color3.fromRGB(25,25,25) panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
 
@@ -326,7 +424,7 @@ local function createPanel()
         btn.Size = UDim2.new(1,-6,0,32) btn.Position = UDim2.new(0,3,0,y)
         btn.BackgroundColor3 = Color3.fromRGB(60,60,60) btn.Text = name
         btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 13
-        btn.Activated:Connect(function() showPage(page) end)  -- DÜZELTİLDİ
+        btn.Activated:Connect(function() showPage(page) end)
     end
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
@@ -335,7 +433,7 @@ local function createPanel()
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI") btn.TextColor3 = Color3.new(1,1,1)
         btn.Font = Enum.Font.SourceSans btn.TextSize = 12
         local toggled = default
-        btn.Activated:Connect(function()   -- DÜZELTİLDİ
+        btn.Activated:Connect(function()
             toggled = not toggled
             btn.Text = name .. ": " .. (toggled and "AÇIK" or "KAPALI")
             btn.BackgroundColor3 = toggled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
@@ -348,6 +446,7 @@ local function createPanel()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 95)   -- <--- YENİ
 
     -- Şerif Aim
     local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
@@ -369,9 +468,12 @@ local function createPanel()
     addCategory("Katil", 79, killerPage)
     showPage(espPage)
 
-    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)  -- DÜZELTİLDİ
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
+-- ==============================================
+-- BAŞLATMA
+-- ==============================================
 Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
 Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function() if ESPData[p] then removeESP(p) end end)
@@ -382,9 +484,10 @@ createJumpButton()
 applySpeed()
 
 RunService.RenderStepped:Connect(function()
-    updateESP()
+    updatePlayerESP()
+    updateGunESP()       -- <--- YENİ: her kare gun esp güncelle
     updateAimbot()
     updateJumpButton()
 end)
 
-print("🔪 MM2: Zıplama Butonu aktif! Sınırsız Zıpla'yı aç, yeşil butona basarak zıpla.")
+print("🔪 MM2: GUN ESP aktif! Yerdeki silahları gösterir. Panelden kapatıp
