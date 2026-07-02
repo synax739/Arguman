@@ -1,4 +1,4 @@
--- MM2 - YAN MENÜLÜ PANEL (ESP + Şerif + Katil)
+-- MM2 - YAN MENÜLÜ PANEL (ESP + Şerif Aim)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,6 +11,9 @@ local cfg = {
     esp_dist = true,
     esp_maxDist = 500,
     gun_esp = true,
+    aim_on = false,
+    aim_maxDist = 120,
+    aim_smoothBase = 2.0,
     team_check = false
 }
 
@@ -231,15 +234,67 @@ local function updateGunESP()
     end
 end
 
+-- ===== ŞERİF AIMBOT =====
+local function hasGun()
+    local myChar = LocalPlayer.Character
+    if not myChar then return false end
+    for _, v in ipairs(myChar:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then for _, v in ipairs(bp:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end end
+    return false
+end
+
+local function getClosestMurderer()
+    local best, bestDist = nil, cfg.aim_maxDist
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = myChar.HumanoidRootPart.Position
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer or getPlayerRole(plr) ~= "Murderer" then continue end
+        local char = plr.Character
+        if not char then continue end
+        local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
+        if not (head or hrp) then continue end
+        local targetPos = head and head.Position or hrp.Position
+        local dist = (myPos - targetPos).Magnitude
+        if dist < bestDist then bestDist = dist best = plr end
+    end
+    return best
+end
+
+local function aimAt(targetPlayer)
+    local char = targetPlayer.Character
+    if not char then return end
+    local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
+    local targetPart = head or hrp
+    if not targetPart then return end
+    local targetPos = targetPart.Position
+    local camPos = Camera.CFrame.Position
+    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
+    local myChar = LocalPlayer.Character
+    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+        local root = myChar.HumanoidRootPart
+        local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if hum then hum.AutoRotate = false end
+        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
+    end
+end
+
+local function updateAimbot()
+    if not cfg.aim_on or getPlayerRole(LocalPlayer) ~= "Sheriff" or not hasGun() then return end
+    local target = getClosestMurderer()
+    if target then aimAt(target) end
+end
+
 -- ==============================================
--- YAN MENÜLÜ PANEL (Dikdörtgen)
+-- YAN MENÜLÜ PANEL
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     gui.ResetOnSpawn = false
 
-    -- Aç/Kapa butonu
     local openBtn = Instance.new("TextButton", gui)
     openBtn.Size = UDim2.new(0, 50, 0, 50)
     openBtn.Position = UDim2.new(1, -60, 0, 10)
@@ -251,7 +306,6 @@ local function createPanel()
     openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
     panel.Size = UDim2.new(0, 320, 0, 320)
     panel.Position = UDim2.new(1, -335, 0, 70)
@@ -297,21 +351,20 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- ===== SOL MENÜ (Kategoriler) =====
+    -- Sol Menü
     local menuFrame = Instance.new("Frame", panel)
     menuFrame.Size = UDim2.new(0, 80, 1, -35)
     menuFrame.Position = UDim2.new(0, 0, 0, 35)
     menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
     menuFrame.BorderSizePixel = 0
 
-    -- ===== SAĞ İÇERİK (Özellikler) =====
+    -- Sağ İçerik
     local contentFrame = Instance.new("Frame", panel)
     contentFrame.Size = UDim2.new(1, -80, 1, -35)
     contentFrame.Position = UDim2.new(0, 80, 0, 35)
     contentFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     contentFrame.BorderSizePixel = 0
 
-    -- Sayfa oluşturucu (içerik için)
     local function createPage()
         local page = Instance.new("Frame", contentFrame)
         page.Size = UDim2.new(1, 0, 1, 0)
@@ -320,7 +373,6 @@ local function createPanel()
         return page
     end
 
-    -- Toggle oluşturucu
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1, -10, 0, 34)
@@ -344,7 +396,6 @@ local function createPanel()
         end)
     end
 
-    -- Menü butonu oluşturucu
     local activePage = nil
     local activeBtn = nil
     local function createMenuButton(name, y, page)
@@ -379,8 +430,6 @@ local function createPanel()
         end
     end
 
-    -- ===== SAYFALAR =====
-    
     -- ESP Sayfası
     local espPage = createPage()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
@@ -391,34 +440,26 @@ local function createPanel()
     espPage.Visible = true
     activePage = espPage
 
-    -- Şerif Sayfası
+    -- Şerif Sayfası (AIMBOT EKLENDİ)
     local sheriffPage = createPage()
-    local placeholder1 = Instance.new("TextLabel", sheriffPage)
-    placeholder1.Size = UDim2.new(1, 0, 1, 0)
-    placeholder1.BackgroundTransparency = 1
-    placeholder1.Text = "🔜 Şerif Aim\nYakında..."
-    placeholder1.TextColor3 = Color3.fromRGB(150, 150, 180)
-    placeholder1.TextSize = 16
-    placeholder1.Font = Enum.Font.SourceSans
-    placeholder1.TextScaled = true
+    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası
+    -- Katil Sayfası (BOŞ)
     local killerPage = createPage()
-    local placeholder2 = Instance.new("TextLabel", killerPage)
-    placeholder2.Size = UDim2.new(1, 0, 1, 0)
-    placeholder2.BackgroundTransparency = 1
-    placeholder2.Text = "🔜 Speed & Jump\nYakında..."
-    placeholder2.TextColor3 = Color3.fromRGB(150, 150, 180)
-    placeholder2.TextSize = 16
-    placeholder2.Font = Enum.Font.SourceSans
-    placeholder2.TextScaled = true
+    local placeholder = Instance.new("TextLabel", killerPage)
+    placeholder.Size = UDim2.new(1, 0, 1, 0)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "🔜 Speed & Jump\nYakında..."
+    placeholder.TextColor3 = Color3.fromRGB(150, 150, 180)
+    placeholder.TextSize = 16
+    placeholder.Font = Enum.Font.SourceSans
+    placeholder.TextScaled = true
 
     -- Menü butonları
     createMenuButton("🔍 ESP", 10, espPage)
     createMenuButton("🔫 Şerif", 55, sheriffPage)
     createMenuButton("🔪 Katil", 100, killerPage)
 
-    -- Aç/Kapa
     openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
@@ -436,7 +477,8 @@ RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
         updateGunESP()
+        updateAimbot()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! Soldaki menüden kategori seç.")
+print("🔪 MM2 Yüklendi! Şerif Aim eklendi.")
