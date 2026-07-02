@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (Jump YOK)
+-- MM2 - ESP + Gun ESP + Şerif Aim (Speed ve Jump YOK)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,8 +14,6 @@ local cfg = {
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
-    speed_on = false,
-    speed_value = 30,
     team_check = false
 }
 
@@ -289,16 +287,8 @@ local function updateAimbot()
     if target then aimAt(target) end
 end
 
--- ===== SPEED HACK =====
-local function applySpeed()
-    if LocalPlayer.Character and cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value
-    end
-end
-
 -- ==============================================
--- PANEL (Yan Menü - ESP, Şerif, Katil)
+-- PANEL (Yan Menü - ESP ve Şerif)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -317,7 +307,7 @@ local function createPanel()
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 320, 0, 320)
+    panel.Size = UDim2.new(0, 320, 0, 280)
     panel.Position = UDim2.new(1, -335, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
@@ -454,18 +444,16 @@ local function createPanel()
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası (SADECE SPEED)
+    -- Katil Sayfası (BOŞ - sadece "Yakında..." yazısı)
     local killerPage = createPage()
-    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
-        cfg.speed_on = v
-        if v then applySpeed()
-        else
-            if LocalPlayer.Character then
-                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum then hum.WalkSpeed = 16 end
-            end
-        end
-    end, 5)
+    local placeholder = Instance.new("TextLabel", killerPage)
+    placeholder.Size = UDim2.new(1, 0, 1, 0)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "🔜 Speed & Jump\nYakında..."
+    placeholder.TextColor3 = Color3.fromRGB(150, 150, 180)
+    placeholder.TextSize = 16
+    placeholder.Font = Enum.Font.SourceSans
+    placeholder.TextScaled = true
 
     -- Menü butonları
     createMenuButton("🔍 ESP", 10, espPage)
@@ -484,8 +472,6 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 
 createPanel()
-wait(0.5)
-applySpeed()
 
 RunService.RenderStepped:Connect(function()
     pcall(function()
@@ -495,4 +481,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! Speed Hack eklendi (Jump yok).")
+print("🔪 MM2 Yüklendi! ESP + Gun ESP + Şerif Aim aktif. Speed/Jump yok.")
