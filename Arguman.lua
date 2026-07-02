@@ -1,4 +1,5 @@
--- // Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun ESP
+-- Delta Mobil – MM2: ESP + Şerif Aim + Katil (Speed & Jump) + Dropped Gun ESP
+-- Düzeltilmiş ve optimize edilmiş sürüm
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -199,7 +200,7 @@ local function updateESP()
         end
     end
 
-    -- Yerdeki silah ESP'si (BASİT VE GÜVENLİ)
+    -- Yerdeki silah ESP'si
     if cfg.dropped_gun_esp then
         pcall(function()
             for _, obj in ipairs(workspace:GetChildren()) do
@@ -258,7 +259,6 @@ local function updateESP()
             end
         end)
     else
-        -- ESP kapalıysa hepsini kaldır
         pcall(function()
             for gun, drawings in pairs(droppedGunESP) do
                 if drawings.box then drawings.box:Remove() end
@@ -407,22 +407,29 @@ local function updateJumpButton()
 end
 
 -- ==============================================
--- PANEL
+-- PANEL (DÜZELTİLMİŞ ve TAMAMLANMIŞ)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
 
     local openBtn = Instance.new("TextButton", gui)
-    openBtn.Size = UDim2.new(0,40,0,40) openBtn.Position = UDim2.new(1,-50,0,10)
-    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) openBtn.Text = "⚙"
-    openBtn.TextColor3 = Color3.new(1,1,1) openBtn.Font = Enum.Font.SourceSansBold openBtn.TextSize = 20
+    openBtn.Size = UDim2.new(0,40,0,40)
+    openBtn.Position = UDim2.new(1,-50,0,10)
+    openBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    openBtn.Text = "⚙"
+    openBtn.TextColor3 = Color3.new(1,1,1)
+    openBtn.Font = Enum.Font.SourceSansBold
+    openBtn.TextSize = 20
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0,280,0,200) panel.Position = UDim2.new(1,-290,0,60)
-    panel.BackgroundColor3 = Color3.fromRGB(25,25,25) panel.Visible = false
+    panel.Size = UDim2.new(0,320,0,350)
+    panel.Position = UDim2.new(1,-330,0,60)
+    panel.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0,8)
 
+    -- Panel sürükleme
     local drag, dragStart, startPos = false, nil, nil
     panel.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -437,16 +444,26 @@ local function createPanel()
         end
     end)
 
+    -- Açma/kapama butonu
+    openBtn.Activated:Connect(function()
+        panel.Visible = not panel.Visible
+    end)
+
     local title = Instance.new("TextLabel", panel)
-    title.Size = UDim2.new(1,0,0,28) title.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    title.Text = "MM2 Panel" title.TextColor3 = Color3.new(1,1,1) title.Font = Enum.Font.SourceSansBold
+    title.Size = UDim2.new(1,0,0,28)
+    title.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    title.Text = "MM2 Panel"
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Font = Enum.Font.SourceSansBold
 
     local sidebar = Instance.new("Frame", panel)
-    sidebar.Size = UDim2.new(0,80,1,-28) sidebar.Position = UDim2.new(0,0,0,28)
+    sidebar.Size = UDim2.new(0,80,1,-28)
+    sidebar.Position = UDim2.new(0,0,0,28)
     sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 
     local content = Instance.new("Frame", panel)
-    content.Size = UDim2.new(1,-80,1,-28) content.Position = UDim2.new(0,80,0,28)
+    content.Size = UDim2.new(1,-80,1,-28)
+    content.Position = UDim2.new(0,80,0,28)
     content.BackgroundColor3 = Color3.fromRGB(30,30,30)
 
     local currentPage = nil
@@ -457,18 +474,25 @@ local function createPanel()
 
     local function addCategory(name, y, page)
         local btn = Instance.new("TextButton", sidebar)
-        btn.Size = UDim2.new(1,-6,0,32) btn.Position = UDim2.new(0,3,0,y)
-        btn.BackgroundColor3 = Color3.fromRGB(60,60,60) btn.Text = name
-        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 13
+        btn.Size = UDim2.new(1,-6,0,32)
+        btn.Position = UDim2.new(0,3,0,y)
+        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+        btn.Text = name
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.SourceSansBold
+        btn.TextSize = 13
         btn.Activated:Connect(function() showPage(page) end)
     end
 
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(1,-10,0,28) btn.Position = UDim2.new(0,5,0,yPos)
+        btn.Size = UDim2.new(1,-10,0,28)
+        btn.Position = UDim2.new(0,5,0,yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
-        btn.TextColor3 = Color3.new(1,1,1) btn.Font = Enum.Font.SourceSans btn.TextSize = 12
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 12
         local toggled = default
         btn.Activated:Connect(function()
             toggled = not toggled
@@ -478,9 +502,9 @@ local function createPanel()
         end)
     end
 
-    -- ESP Sayfası
-    local espPage = Instance.new("Frame", content) espPage.Size = UDim2.new(1,0,1,0) espPage.BackgroundTransparency = 1
-    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
-    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
-    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
-    addToggle(espPage, "Dropped Gun ESP", cfg.dropped_gun_esp, function(v) 
+    -- Sayfa oluşturucu
+    local function createPage()
+        local page = Instance.new("Frame", content)
+        page.Size = UDim2.new(1,0,1,0)
+        page.BackgroundTransparency = 1
+        page.Visible
