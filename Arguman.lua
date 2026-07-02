@@ -1,4 +1,4 @@
--- MM2 GUN ESP - SADECE GUNDROP (Yere Düşen Silah)
+-- MM2 GUN ESP - Mesafe Gösterir (Yere Düşen Silah)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,6 +23,7 @@ local function updateGunESP()
         for _, obj in pairs(gunESPObjects) do
             pcall(function() obj.box:Remove() end)
             pcall(function() obj.text:Remove() end)
+            pcall(function() obj.dist:Remove() end)
         end
         gunESPObjects = {}
         return
@@ -32,8 +33,13 @@ local function updateGunESP()
     for _, obj in pairs(gunESPObjects) do
         pcall(function() obj.box:Remove() end)
         pcall(function() obj.text:Remove() end)
+        pcall(function() obj.dist:Remove() end)
     end
     gunESPObjects = {}
+
+    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myPos then return end
+    local myPosition = myPos.Position
 
     -- SADECE GunDrop'ları tara
     for _, obj in ipairs(workspace:GetDescendants()) do
@@ -56,10 +62,16 @@ local function updateGunESP()
             if not isHeld then
                 local pos = obj.Position
                 if pos ~= pos then continue end
+                
+                -- Mesafeyi hesapla
+                local dist = (myPosition - pos).Magnitude
+                local distText = math.floor(dist) .. "m"
+                
                 local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
                 if onScreen and isInFront(pos) then
                     local box = newDrawing("Square")
                     local text = newDrawing("Text")
+                    local distLabel = newDrawing("Text")
                     
                     if box then
                         box.Thickness = 2
@@ -80,7 +92,17 @@ local function updateGunESP()
                         text.Visible = true
                     end
                     
-                    gunESPObjects[obj] = {box = box, text = text}
+                    if distLabel then
+                        distLabel.Size = 12
+                        distLabel.Center = true
+                        distLabel.Outline = true
+                        distLabel.Color = Color3.fromRGB(100, 255, 100)
+                        distLabel.Text = distText
+                        distLabel.Position = Vector2.new(screenPos.X, screenPos.Y + 25)
+                        distLabel.Visible = true
+                    end
+                    
+                    gunESPObjects[obj] = {box = box, text = text, dist = distLabel}
                 end
             end
         end
@@ -91,7 +113,7 @@ RunService.RenderStepped:Connect(function()
     updateGunESP()
 end)
 
--- Panel
+-- Panel (AÇIK/KAPALI butonu)
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "GunESP_Panel"
@@ -114,4 +136,4 @@ local function createPanel()
 end
 
 createPanel()
-print("🔫 GUN ESP AKTIF! Sadece yere dusen silahlari (GunDrop) gosterir.")
+print("🔫 GUN ESP AKTIF! Mesafe gosteriliyor (metre cinsinden).")
