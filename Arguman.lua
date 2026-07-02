@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (ÇALIŞIR)
+-- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (BASİT VE ÇALIŞIR)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -289,27 +289,23 @@ local function updateAimbot()
     if target then aimAt(target) end
 end
 
--- ===== SPEED HACK (DÜZELTİLDİ) =====
-local function applySpeed()
-    if LocalPlayer.Character and cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then hum.WalkSpeed = cfg.speed_value
-    elseif LocalPlayer.Character and not cfg.speed_on then
-        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.WalkSpeed == cfg.speed_value then
+-- ===== SPEED HACK (EN BASİT HALİ) =====
+local function updateSpeed()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    if cfg.speed_on then
+        hum.WalkSpeed = cfg.speed_value
+    else
+        if hum.WalkSpeed == cfg.speed_value then
             hum.WalkSpeed = 16
         end
     end
 end
 
--- Karakter değişince speed'i uygula
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(0.5)
-    applySpeed()
-end)
-
 -- ==============================================
--- PANEL (Yan Menü - ESP, Şerif, Katil)
+-- PANEL
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -469,7 +465,7 @@ local function createPanel()
     local killerPage = createPage()
     addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
         cfg.speed_on = v
-        applySpeed()
+        updateSpeed()
     end, 5)
 
     -- Menü butonları
@@ -490,16 +486,17 @@ end)
 
 createPanel()
 
--- Karakter varsa hemen speed'i uygula
-wait(0.5)
-applySpeed()
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(0.5)
+    updateSpeed()
+end)
 
 RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
         updateGunESP()
         updateAimbot()
-        applySpeed() -- HER KARE SPEED'İ KONTROL ET
+        updateSpeed()
     end)
 end)
 
