@@ -1,4 +1,4 @@
--- MM2 FULL - Sadece Panel (ESP + Şerif Aim) - Speed/Jump YOK
+-- MM2 FULL - Panel (ESP + Şerif Aim + Speed)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,6 +14,8 @@ local cfg = {
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
+    speed_on = false,
+    speed_value = 30,
     team_check = false
 }
 
@@ -300,7 +302,24 @@ local function updateAimbot()
 end
 
 -- ==============================================
--- PANEL (Dikdörtgen, 3 Kategori - Sadece ESP + Şerif)
+-- SPEED HACK
+-- ==============================================
+local function applySpeed()
+    if LocalPlayer.Character and cfg.speed_on then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = cfg.speed_value
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    if cfg.speed_on then
+        wait(0.2)
+        applySpeed()
+    end
+end)
+
+-- ==============================================
+-- PANEL (Dikdörtgen, 3 Kategori - ESP + Şerif + Katil/Speed)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -329,9 +348,8 @@ local function createPanel()
     panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
 
-    -- Sürükleme (DÜZELTİLDİ)
+    -- Sürükleme
     local dragging = false
-    local dragInput = nil
     local dragStart = nil
     local startPos = nil
 
@@ -366,7 +384,7 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Kategori butonları (3 adet - ESP, Şerif, Katil)
+    -- Kategori butonları (3 adet)
     local tabFrame = Instance.new("Frame", panel)
     tabFrame.Size = UDim2.new(1, 0, 0, 40)
     tabFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -456,16 +474,19 @@ local function createPanel()
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 2)
 
-    -- Katil Sayfası (BOŞ - sadece placeholder)
+    -- Katil Sayfası (SPEED EKLENDİ)
     local killerPage = createPage()
-    local placeholder = Instance.new("TextLabel", killerPage)
-    placeholder.Size = UDim2.new(1, 0, 1, 0)
-    placeholder.BackgroundTransparency = 1
-    placeholder.Text = "🔜 Yakında..."
-    placeholder.TextColor3 = Color3.fromRGB(150, 150, 180)
-    placeholder.TextSize = 18
-    placeholder.Font = Enum.Font.SourceSans
-    placeholder.TextScaled = true
+    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
+        cfg.speed_on = v
+        if v then
+            applySpeed()
+        else
+            if LocalPlayer.Character then
+                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum then hum.WalkSpeed = 16
+            end
+        end
+    end, 2)
 
     -- Kategori butonları
     createTab("🔍 ESP", 0, espPage)
@@ -490,6 +511,10 @@ end)
 
 createPanel()
 
+-- İlk speed uygulaması (eğer açık kaydedilmişse)
+wait(0.5)
+applySpeed()
+
 RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
@@ -498,4 +523,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla.")
+print("🔪 MM2 FULL Yüklendi! ⚙ butonuna tıkla. Katil sayfasında Speed Hack var.")
