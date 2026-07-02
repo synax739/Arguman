@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: Panel + Zıplama Butonu + GUN ESP (yere düşen silahlar)
+-- // Delta Mobil – MM2: Panel + Zıplama Butonu + GUN ESP (HATA KORUMALI)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,7 +11,7 @@ local cfg = {
     esp_box = true,
     esp_dist = true,
     esp_maxDist = 500,
-    gun_esp = true,          -- <--- YENİ: yerdeki silahları göster
+    gun_esp = true,
     aim_on = false,
     aim_maxDist = 120,
     aim_smoothBase = 2.0,
@@ -22,7 +22,7 @@ local cfg = {
 }
 
 local jumpButton = nil
-local gunESPObjects = {}   -- Yerdeki silahlar için drawing objeleri
+local gunESPObjects = {}
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -174,7 +174,7 @@ local function updatePlayerESP()
 end
 
 -- ==============================================
--- YENİ: YERDEKİ SİLAHLARIN ESP'Sİ (GUN ESP)
+-- YENİ: YERDEKİ SİLAHLARIN ESP'Sİ (GUN ESP) - HATA KORUMALI
 -- ==============================================
 local function updateGunESP()
     if not cfg.gun_esp then
@@ -187,68 +187,75 @@ local function updateGunESP()
         return
     end
 
-    local guns = {}
-    -- workspace'teki tüm Tool'ları tara
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Tool") and obj.Name == "Gun" then
-            local handle = obj:FindFirstChild("Handle")
-            if handle then
-                table.insert(guns, {tool = obj, handle = handle})
-            end
-        end
-    end
-
-    -- Mevcut objeleri güncelle
-    local processed = {}
-    for _, gun in ipairs(guns) do
-        local pos = gun.handle.Position
-        local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-        if onScreen and isInFront(pos) then
-            if not gunESPObjects[gun.tool] then
-                -- Yeni drawing oluştur
-                local box = newDrawing("Square")
-                local text = newDrawing("Text")
-                if box then
-                    box.Thickness = 2
-                    box.Filled = false
-                    box.Color = Color3.fromRGB(255, 200, 0)
+    local success, err = pcall(function()
+        local guns = {}
+        -- workspace'teki tüm Tool'ları tara (ve belki Model içindekileri de bulmak için GetDescendants)
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Tool") and (obj.Name == "Gun" or obj.Name == "Revolver" or obj.Name == "Pistol" or string.find(obj.Name, "Gun")) then
+                local handle = obj:FindFirstChild("Handle")
+                if handle then
+                    table.insert(guns, {tool = obj, handle = handle})
                 end
-                if text then
-                    text.Size = 14
-                    text.Center = true
-                    text.Outline = true
-                    text.Color = Color3.fromRGB(255, 200, 0)
-                    text.Text = "🔫 SİLAH"
-                end
-                gunESPObjects[gun.tool] = {box = box, text = text}
-            end
-            local d = gunESPObjects[gun.tool]
-            if d.box then
-                d.box.Visible = true
-                d.box.Position = Vector2.new(screenPos.X - 20, screenPos.Y - 20)
-                d.box.Size = Vector2.new(40, 40)
-            end
-            if d.text then
-                d.text.Visible = true
-                d.text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
-            end
-            processed[gun.tool] = true
-        else
-            -- Ekranda değilse gizle
-            if gunESPObjects[gun.tool] then
-                if gunESPObjects[gun.tool].box then gunESPObjects[gun.tool].box.Visible = false end
-                if gunESPObjects[gun.tool].text then gunESPObjects[gun.tool].text.Visible = false end
             end
         end
-    end
 
-    -- Artık var olmayan silahları temizle
-    for tool, d in pairs(gunESPObjects) do
-        if not processed[tool] then
-            if d.box then d.box:Remove() end
-            if d.text then d.text:Remove() end
-            gunESPObjects[tool] = nil
+        -- Mevcut objeleri güncelle
+        local processed = {}
+        for _, gun in ipairs(guns) do
+            local pos = gun.handle.Position
+            if pos ~= pos then continue end  -- NaN kontrolü
+            local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+            if onScreen and isInFront(pos) then
+                if not gunESPObjects[gun.tool] then
+                    local box = newDrawing("Square")
+                    local text = newDrawing("Text")
+                    if box then
+                        box.Thickness = 2
+                        box.Filled = false
+                        box.Color = Color3.fromRGB(255, 200, 0)
+                    end
+                    if text then
+                        text.Size = 14
+                        text.Center = true
+                        text.Outline = true
+                        text.Color = Color3.fromRGB(255, 200, 0)
+                        text.Text = "🔫 SİLAH"
+                    end
+                    gunESPObjects[gun.tool] = {box = box, text = text}
+                end
+                local d = gunESPObjects[gun.tool]
+                if d.box then
+                    d.box.Visible = true
+                    d.box.Position = Vector2.new(screenPos.X - 20, screenPos.Y - 20)
+                    d.box.Size = Vector2.new(40, 40)
+                end
+                if d.text then
+                    d.text.Visible = true
+                    d.text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
+                end
+                processed[gun.tool] = true
+            else
+                if gunESPObjects[gun.tool] then
+                    if gunESPObjects[gun.tool].box then gunESPObjects[gun.tool].box.Visible = false end
+                    if gunESPObjects[gun.tool].text then gunESPObjects[gun.tool].text.Visible = false end
+                end
+            end
         end
+
+        -- Artık var olmayan silahları temizle
+        for tool, d in pairs(gunESPObjects) do
+            if not processed[tool] then
+                if d.box then d.box:Remove() end
+                if d.text then d.text:Remove() end
+                gunESPObjects[tool] = nil
+            end
+        end
+    end)
+
+    if not success then
+        print("[GUN ESP HATASI]:", err)
+        -- Hata olursa gun esp'yi kapat
+        cfg.gun_esp = false
     end
 end
 
@@ -446,7 +453,7 @@ local function createPanel()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 35)
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 65)
-    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 95)   -- <--- YENİ
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 95)
 
     -- Şerif Aim
     local aimPage = Instance.new("Frame", content) aimPage.Size = UDim2.new(1,0,1,0) aimPage.BackgroundTransparency = 1
@@ -474,20 +481,4 @@ end
 -- ==============================================
 -- BAŞLATMA
 -- ==============================================
-Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() if ESPData[p] then removeESP(p) end end)
-end)
-
-createPanel()
-createJumpButton()
-applySpeed()
-
-RunService.RenderStepped:Connect(function()
-    updatePlayerESP()
-    updateGunESP()       -- <--- YENİ: her kare gun esp güncelle
-    updateAimbot()
-    updateJumpButton()
-end)
-
-print("🔪 MM2: GUN ESP aktif! Yerdeki silahları gösterir. Panelden kapatıp
+Players.PlayerRemoving:Con
