@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Gelişmiş Aimbot + Speed Hack (Hata Düzeltmeli)
+-- MM2 - SADECE ESP + GUN ESP + PANEL (KESİN ÇALIŞIR)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,11 +11,6 @@ local cfg = {
     esp_dist = true,
     esp_maxDist = 500,
     gun_esp = true,
-    aim_on = false,
-    aim_maxDist = 150,
-    aim_smoothness = 4,
-    speed_on = false,
-    speed_value = 30,
     team_check = false
 }
 
@@ -60,14 +55,8 @@ local function newDrawing(t)
     return ok and d or nil
 end
 
-local function isValidVector(v)
-    return v and type(v) == "Vector3" and v.X == v.X and v.Y == v.Y and v.Z == v.Z
-end
-
 local function isInFront(pos)
-    if not isValidVector(pos) then return false end
     local camPos = Camera.CFrame.Position
-    if not isValidVector(camPos) then return false end
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
@@ -95,13 +84,8 @@ local function getBox(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
-    if not isValidVector(hrp.Position) then return nil end
-    
     local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
     local bottom = hrp.Position - Vector3.new(0, 3, 0)
-    
-    if not isValidVector(top) or not isValidVector(bottom) then return nil end
-    
     local ts, on1 = Camera:WorldToViewportPoint(top)
     local bs, on2 = Camera:WorldToViewportPoint(bottom)
     if not on1 and not on2 then return nil end
@@ -143,10 +127,6 @@ local function updateESP()
             if ESPData[plr] then removeESP(plr) end
             continue
         end
-        if not isValidVector(hrp.Position) then
-            if ESPData[plr] then removeESP(plr) end
-            continue
-        end
 
         if not isInFront(hrp.Position) then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -155,10 +135,7 @@ local function updateESP()
 
         local dist = 0
         if my and my:FindFirstChild("HumanoidRootPart") then
-            local myPos = my.HumanoidRootPart.Position
-            if isValidVector(myPos) then
-                dist = (myPos - hrp.Position).Magnitude
-            end
+            dist = (my.HumanoidRootPart.Position - hrp.Position).Magnitude
         end
         if dist > cfg.esp_maxDist then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -203,17 +180,14 @@ local function updateGunESP()
     end
     gunESPObjects = {}
 
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    local myPos = myChar:FindFirstChild("HumanoidRootPart")
+    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not myPos then return end
     local myPosition = myPos.Position
-    if not isValidVector(myPosition) then return end
 
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "GunDrop" then
             local pos = obj.Position
-            if not isValidVector(pos) then continue end
+            if pos ~= pos then continue end
             local dist = (myPosition - pos).Magnitude
             local distText = math.floor(dist) .. "m"
             local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -257,150 +231,7 @@ local function updateGunESP()
     end
 end
 
--- ==============================================
--- GELİŞMİŞ AIMBOT (HATA DÜZELTMELİ)
--- ==============================================
-local function hasGun()
-    local myChar = LocalPlayer.Character
-    if not myChar then return false end
-    for _, v in ipairs(myChar:GetChildren()) do 
-        if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
-            return true 
-        end 
-    end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then 
-        for _, v in ipairs(bp:GetChildren()) do 
-            if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
-                return true 
-            end 
-        end 
-    end
-    return false
-end
-
-local function getClosestMurderer()
-    local best, bestDist = nil, cfg.aim_maxDist
-    local myChar = LocalPlayer.Character
-    if not myChar then return nil end
-    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot then return nil end
-    local myPos = myRoot.Position
-    if not isValidVector(myPos) then return nil end
-    
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if getPlayerRole(plr) ~= "Murderer" then continue end
-        
-        local char = plr.Character
-        if not char then continue end
-        
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then continue end
-        local targetPos = hrp.Position
-        if not isValidVector(targetPos) then continue end
-        
-        local dist = (myPos - targetPos).Magnitude
-        if dist < bestDist then
-            bestDist = dist
-            best = plr
-        end
-    end
-    return best
-end
-
-local function getPredictedPosition(targetPlayer)
-    local char = targetPlayer.Character
-    if not char then return nil end
-    
-    local head = char:FindFirstChild("Head")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil end
-    
-    local targetPos = head and head.Position or hrp.Position
-    if not isValidVector(targetPos) then return nil end
-    
-    local targetVelocity = hrp.Velocity
-    if not isValidVector(targetVelocity) then targetVelocity = Vector3.zero
-    
-    -- Eğer hedef çok hızlı hareket ediyorsa tahmin uygula
-    if targetVelocity.Magnitude > 3 then
-        local dist = (Camera.CFrame.Position - targetPos).Magnitude
-        local bulletSpeed = 300
-        local travelTime = dist / bulletSpeed
-        targetPos = targetPos + (targetVelocity * travelTime * 0.5)
-    end
-    
-    return targetPos
-end
-
-local function aimAt(targetPlayer)
-    local char = targetPlayer.Character
-    if not char then return end
-    
-    local targetPos = getPredictedPosition(targetPlayer)
-    if not targetPos then return end
-    if not isValidVector(targetPos) then return end
-    
-    local camPos = Camera.CFrame.Position
-    if not isValidVector(camPos) then return end
-    
-    -- Kamera'yı hedefe çevir (yumuşak)
-    local targetCFrame = CFrame.lookAt(camPos, targetPos)
-    local smoothFactor = 1 / cfg.aim_smoothness
-    pcall(function()
-        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
-    end)
-    
-    -- Karakteri de hedefe döndür
-    local myChar = LocalPlayer.Character
-    if myChar then
-        local root = myChar:FindFirstChild("HumanoidRootPart")
-        if root and isValidVector(root.Position) then
-            local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
-            if isValidVector(flatTarget) then
-                local hum = myChar:FindFirstChildOfClass("Humanoid")
-                if hum then hum.AutoRotate = false end
-                pcall(function()
-                    root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), smoothFactor)
-                end)
-            end
-        end
-    end
-end
-
-local function updateAimbot()
-    if not cfg.aim_on then return end
-    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
-    if not hasGun() then return end
-    
-    local target = getClosestMurderer()
-    if target then aimAt(target) end
-end
-
--- ===== SPEED HACK =====
-local function updateSpeed()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-    if cfg.speed_on then
-        hum.WalkSpeed = cfg.speed_value
-    else
-        if hum.WalkSpeed == cfg.speed_value then
-            hum.WalkSpeed = 16
-        end
-    end
-end
-
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(0.5)
-    updateSpeed()
-end)
-
--- ==============================================
--- PANEL
--- ==============================================
+-- ===== PANEL =====
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
@@ -418,8 +249,8 @@ local function createPanel()
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 320, 0, 320)
-    panel.Position = UDim2.new(1, -335, 0, 70)
+    panel.Size = UDim2.new(0, 280, 0, 250)
+    panel.Position = UDim2.new(1, -295, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
     panel.BorderSizePixel = 0
@@ -462,37 +293,21 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Sol Menü
-    local menuFrame = Instance.new("Frame", panel)
-    menuFrame.Size = UDim2.new(0, 80, 1, -35)
-    menuFrame.Position = UDim2.new(0, 0, 0, 35)
-    menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
-    menuFrame.BorderSizePixel = 0
+    -- İçerik
+    local content = Instance.new("Frame", panel)
+    content.Size = UDim2.new(1, -20, 1, -45)
+    content.Position = UDim2.new(0, 10, 0, 40)
+    content.BackgroundTransparency = 1
 
-    -- Sağ İçerik
-    local contentFrame = Instance.new("Frame", panel)
-    contentFrame.Size = UDim2.new(1, -80, 1, -35)
-    contentFrame.Position = UDim2.new(0, 80, 0, 35)
-    contentFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
-    contentFrame.BorderSizePixel = 0
-
-    local function createPage()
-        local page = Instance.new("Frame", contentFrame)
-        page.Size = UDim2.new(1, 0, 1, 0)
-        page.BackgroundTransparency = 1
-        page.Visible = false
-        return page
-    end
-
-    local function addToggle(parent, name, default, callback, yPos)
-        local btn = Instance.new("TextButton", parent)
-        btn.Size = UDim2.new(1, -10, 0, 34)
-        btn.Position = UDim2.new(0, 5, 0, yPos)
+    local function addToggle(name, default, callback, yPos)
+        local btn = Instance.new("TextButton", content)
+        btn.Size = UDim2.new(1, 0, 0, 34)
+        btn.Position = UDim2.new(0, 0, 0, yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
         btn.BackgroundTransparency = 0.15
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
         btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.TextSize = 12
+        btn.TextSize = 13
         btn.Font = Enum.Font.SourceSans
         btn.BorderSizePixel = 0
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
@@ -507,51 +322,30 @@ local function createPanel()
         end)
     end
 
-    local activePage = nil
-    local activeBtn = nil
-    local function createMenuButton(name, y, page)
-        local btn = Instance.new("TextButton", menuFrame)
-        btn.Size = UDim2.new(1, 0, 0, 40)
-        btn.Position = UDim2.new(0, 0, 0, y)
-        btn.BackgroundTransparency = 1
-        btn.Text = name
-        btn.TextColor3 = Color3.fromRGB(160, 160, 190)
-        btn.TextSize = 14
-        btn.Font = Enum.Font.SourceSansBold
-        btn.BorderSizePixel = 0
+    addToggle("ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
+    addToggle("Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
+    addToggle("Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
+    addToggle("Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
+    addToggle("Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
 
-        btn.Activated:Connect(function()
-            if activeBtn then
-                activeBtn.BackgroundTransparency = 1
-                activeBtn.TextColor3 = Color3.fromRGB(160, 160, 190)
-            end
-            btn.BackgroundTransparency = 0.2
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            activeBtn = btn
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+end
 
-            if activePage then activePage.Visible = false end
-            page.Visible = true
-            activePage = page
-        end)
+-- ===== BAŞLAT =====
+Players.PlayerRemoving:Connect(function(p) 
+    if ESPData[p] then 
+        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
+        ESPData[p] = nil 
+    end 
+end)
 
-        if y == 10 then
-            btn.BackgroundTransparency = 0.2
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            activeBtn = btn
-        end
-    end
+createPanel()
 
-    -- ESP Sayfası
-    local espPage = createPage()
-    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
-    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
-    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
-    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
-    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        updateESP()
+        updateGunESP()
+    end)
+end)
 
-    -- Şerif Sayfası
-    local sheriffPage = createPage()
-    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
-
-    -- Katil Sayfası
-    local killerPage = createPaimbot  aktif (hareket tahmini ile).
+print("🔪 MM2 Yüklendi! ESP + Gun ESP aktif.")
