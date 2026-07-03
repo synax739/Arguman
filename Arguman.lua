@@ -1,4 +1,4 @@
--- MM2 - SADECE ESP + GUN ESP + PANEL (KESİN ÇALIŞIR)
+-- MM2 - ESP + GUN ESP + PANEL (ÇALIŞIR - Hata Düzeltmeli)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,6 +23,22 @@ local ROLE_COLORS = {
     Innocent = Color3.fromRGB(0, 255, 0),
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
+
+-- ==============================================
+-- GÜVENLİ POZİSYON KONTROLÜ
+-- ==============================================
+local function isValidVector(v)
+    return v and type(v) == "Vector3" and v.X == v.X and v.Y == v.Y and v.Z == v.Z and v.Magnitude < 1e6
+end
+
+local function getSafePosition(part)
+    if not part then return nil end
+    local pos = part.Position
+    if isValidVector(pos) then
+        return pos
+    end
+    return nil
+end
 
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -56,7 +72,9 @@ local function newDrawing(t)
 end
 
 local function isInFront(pos)
+    if not isValidVector(pos) then return false end
     local camPos = Camera.CFrame.Position
+    if not isValidVector(camPos) then return false end
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
@@ -84,8 +102,16 @@ local function getBox(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
-    local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
-    local bottom = hrp.Position - Vector3.new(0, 3, 0)
+    
+    local headPos = head and getSafePosition(head)
+    local hrpPos = getSafePosition(hrp)
+    if not hrpPos then return nil end
+    
+    local top = headPos and (headPos + Vector3.new(0, 1.5, 0)) or (hrpPos + Vector3.new(0, 2.5, 0))
+    local bottom = hrpPos - Vector3.new(0, 3, 0)
+    
+    if not isValidVector(top) or not isValidVector(bottom) then return nil end
+    
     local ts, on1 = Camera:WorldToViewportPoint(top)
     local bs, on2 = Camera:WorldToViewportPoint(bottom)
     if not on1 and not on2 then return nil end
@@ -109,6 +135,8 @@ local function updateESP()
     end
 
     local my = LocalPlayer.Character
+    local myPos = my and my:FindFirstChild("HumanoidRootPart") and getSafePosition(my.HumanoidRootPart)
+    
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         local role = getPlayerRole(plr)
@@ -127,15 +155,21 @@ local function updateESP()
             if ESPData[plr] then removeESP(plr) end
             continue
         end
+        
+        local hrpPos = getSafePosition(hrp)
+        if not hrpPos then
+            if ESPData[plr] then removeESP(plr) end
+            continue
+        end
 
-        if not isInFront(hrp.Position) then
+        if not isInFront(hrpPos) then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
             continue
         end
 
         local dist = 0
-        if my and my:FindFirstChild("HumanoidRootPart") then
-            dist = (my.HumanoidRootPart.Position - hrp.Position).Magnitude
+        if myPos then
+            dist = (myPos - hrpPos).Magnitude
         end
         if dist > cfg.esp_maxDist then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -180,14 +214,17 @@ local function updateGunESP()
     end
     gunESPObjects = {}
 
-    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myPos = myChar:FindFirstChild("HumanoidRootPart")
     if not myPos then return end
-    local myPosition = myPos.Position
+    local myPosition = getSafePosition(myPos)
+    if not myPosition then return end
 
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "GunDrop" then
-            local pos = obj.Position
-            if pos ~= pos then continue end
+            local pos = getSafePosition(obj)
+            if not pos then continue end
             local dist = (myPosition - pos).Magnitude
             local distText = math.floor(dist) .. "m"
             local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -348,4 +385,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! ESP + Gun ESP aktif.")
+print("🔪 MM2 Yüklendi! ESP + Gun ESP aktif. Invalid position hatası önlendi.")
