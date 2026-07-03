@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Gelişmiş Aimbot + Speed Hack (Jump YOK)
+-- MM2 - ESP + Gun ESP + Gelişmiş Aimbot + Speed Hack (Hata Düzeltmeli)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,9 +13,7 @@ local cfg = {
     gun_esp = true,
     aim_on = false,
     aim_maxDist = 150,
-    aim_smoothness = 4,      -- Düşük = hızlı takip (2-5 arası)
-    aim_prediction = true,   -- Hareket tahmini AÇIK
-    aim_prediction_mult = 0.6, -- Tahmin gücü
+    aim_smoothness = 4,
     speed_on = false,
     speed_value = 30,
     team_check = false
@@ -62,8 +60,14 @@ local function newDrawing(t)
     return ok and d or nil
 end
 
+local function isValidVector(v)
+    return v and type(v) == "Vector3" and v.X == v.X and v.Y == v.Y and v.Z == v.Z
+end
+
 local function isInFront(pos)
+    if not isValidVector(pos) then return false end
     local camPos = Camera.CFrame.Position
+    if not isValidVector(camPos) then return false end
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
@@ -91,8 +95,13 @@ local function getBox(character)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     local hum = character:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return nil end
+    if not isValidVector(hrp.Position) then return nil end
+    
     local top = head and (head.Position + Vector3.new(0, 1.5, 0)) or (hrp.Position + Vector3.new(0, 2.5, 0))
     local bottom = hrp.Position - Vector3.new(0, 3, 0)
+    
+    if not isValidVector(top) or not isValidVector(bottom) then return nil end
+    
     local ts, on1 = Camera:WorldToViewportPoint(top)
     local bs, on2 = Camera:WorldToViewportPoint(bottom)
     if not on1 and not on2 then return nil end
@@ -134,6 +143,10 @@ local function updateESP()
             if ESPData[plr] then removeESP(plr) end
             continue
         end
+        if not isValidVector(hrp.Position) then
+            if ESPData[plr] then removeESP(plr) end
+            continue
+        end
 
         if not isInFront(hrp.Position) then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -142,7 +155,10 @@ local function updateESP()
 
         local dist = 0
         if my and my:FindFirstChild("HumanoidRootPart") then
-            dist = (my.HumanoidRootPart.Position - hrp.Position).Magnitude
+            local myPos = my.HumanoidRootPart.Position
+            if isValidVector(myPos) then
+                dist = (myPos - hrp.Position).Magnitude
+            end
         end
         if dist > cfg.esp_maxDist then
             if ESPData[plr] then for _, v in pairs(ESPData[plr]) do v.Visible = false end end
@@ -187,14 +203,17 @@ local function updateGunESP()
     end
     gunESPObjects = {}
 
-    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myPos = myChar:FindFirstChild("HumanoidRootPart")
     if not myPos then return end
     local myPosition = myPos.Position
+    if not isValidVector(myPosition) then return end
 
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "GunDrop" then
             local pos = obj.Position
-            if pos ~= pos then continue end
+            if not isValidVector(pos) then continue end
             local dist = (myPosition - pos).Magnitude
             local distText = math.floor(dist) .. "m"
             local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -239,18 +258,22 @@ local function updateGunESP()
 end
 
 -- ==============================================
--- GELİŞMİŞ AIMBOT (Hareket Tahmini + Yumuşak Takip)
+-- GELİŞMİŞ AIMBOT (HATA DÜZELTMELİ)
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
     if not myChar then return false end
     for _, v in ipairs(myChar:GetChildren()) do 
-        if v:IsA("Tool") and v.Name == "Gun" then return true end 
+        if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
+            return true 
+        end 
     end
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if bp then 
         for _, v in ipairs(bp:GetChildren()) do 
-            if v:IsA("Tool") and v.Name == "Gun" then return true end 
+            if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
+                return true 
+            end 
         end 
     end
     return false
@@ -259,9 +282,11 @@ end
 local function getClosestMurderer()
     local best, bestDist = nil, cfg.aim_maxDist
     local myChar = LocalPlayer.Character
-    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
-    local myPos = myChar.HumanoidRootPart.Position
-    local myVelocity = myChar.HumanoidRootPart.Velocity or Vector3.zero
+    if not myChar then return nil end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local myPos = myRoot.Position
+    if not isValidVector(myPos) then return nil end
     
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
@@ -270,14 +295,12 @@ local function getClosestMurderer()
         local char = plr.Character
         if not char then continue end
         
-        local head = char:FindFirstChild("Head")
         local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not (head or hrp) then continue end
+        if not hrp then continue end
+        local targetPos = hrp.Position
+        if not isValidVector(targetPos) then continue end
         
-        -- Hedef pozisyonu (Head öncelikli)
-        local targetPos = head and head.Position or hrp.Position
         local dist = (myPos - targetPos).Magnitude
-        
         if dist < bestDist then
             bestDist = dist
             best = plr
@@ -292,19 +315,20 @@ local function getPredictedPosition(targetPlayer)
     
     local head = char:FindFirstChild("Head")
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not (head or hrp) then return nil end
+    if not hrp then return nil end
     
     local targetPos = head and head.Position or hrp.Position
-    local targetVelocity = hrp.Velocity or Vector3.zero
+    if not isValidVector(targetPos) then return nil end
     
-    -- Mermi hızı tahmini (MM2'de mermi anlık vurur ama yine de hareket tahmini ekleyelim)
-    local bulletSpeed = 350 -- Varsayılan mermi hızı
-    local dist = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
-                 (LocalPlayer.Character.HumanoidRootPart.Position - targetPos).Magnitude) or 100
+    local targetVelocity = hrp.Velocity
+    if not isValidVector(targetVelocity) then targetVelocity = Vector3.zero
     
-    if cfg.aim_prediction and targetVelocity.Magnitude > 2 then
+    -- Eğer hedef çok hızlı hareket ediyorsa tahmin uygula
+    if targetVelocity.Magnitude > 3 then
+        local dist = (Camera.CFrame.Position - targetPos).Magnitude
+        local bulletSpeed = 300
         local travelTime = dist / bulletSpeed
-        targetPos = targetPos + (targetVelocity * travelTime * cfg.aim_prediction_mult)
+        targetPos = targetPos + (targetVelocity * travelTime * 0.5)
     end
     
     return targetPos
@@ -316,24 +340,32 @@ local function aimAt(targetPlayer)
     
     local targetPos = getPredictedPosition(targetPlayer)
     if not targetPos then return end
+    if not isValidVector(targetPos) then return end
     
     local camPos = Camera.CFrame.Position
+    if not isValidVector(camPos) then return end
     
     -- Kamera'yı hedefe çevir (yumuşak)
     local targetCFrame = CFrame.lookAt(camPos, targetPos)
     local smoothFactor = 1 / cfg.aim_smoothness
-    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
+    pcall(function()
+        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
+    end)
     
     -- Karakteri de hedefe döndür
     local myChar = LocalPlayer.Character
-    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-        local root = myChar.HumanoidRootPart
-        local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
-        local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if hum then hum.AutoRotate = false end
-        pcall(function()
-            root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), smoothFactor)
-        end)
+    if myChar then
+        local root = myChar:FindFirstChild("HumanoidRootPart")
+        if root and isValidVector(root.Position) then
+            local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
+            if isValidVector(flatTarget) then
+                local hum = myChar:FindFirstChildOfClass("Humanoid")
+                if hum then hum.AutoRotate = false end
+                pcall(function()
+                    root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), smoothFactor)
+                end)
+            end
+        end
     end
 end
 
@@ -517,44 +549,9 @@ local function createPanel()
     addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
     addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
 
-    -- Şerif Sayfası (GELİŞMİŞ AIMBOT)
+    -- Şerif Sayfası
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
-    -- Katil Sayfası (SPEED)
-    local killerPage = createPage()
-    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
-        cfg.speed_on = v
-        updateSpeed()
-    end, 5)
-
-    -- Menü butonları
-    createMenuButton("🔍 ESP", 10, espPage)
-    createMenuButton("🔫 Şerif", 55, sheriffPage)
-    createMenuButton("🔪 Katil", 100, killerPage)
-
-    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
-end
-
--- ===== BAŞLAT =====
-Players.PlayerRemoving:Connect(function(p) 
-    if ESPData[p] then 
-        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
-        ESPData[p] = nil 
-    end 
-end)
-
-createPanel()
-wait(0.5)
-updateSpeed()
-
-RunService.RenderStepped:Connect(function()
-    pcall(function()
-        updateESP()
-        updateGunESP()
-        updateAimbot()
-        updateSpeed()
-    end)
-end)
-
-print("🔪 MM2 yuklendi gelismis aimbot  aktif (hareket tahmini ile).")
+    -- Katil Sayfası
+    local killerPage = createPaimbot  aktif (hareket tahmini ile).
