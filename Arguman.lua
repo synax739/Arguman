@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack (BASİT VE ÇALIŞIR)
+-- MM2 - ESP + Gun ESP + Gelişmiş Aimbot + Speed Hack (Jump YOK)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -12,8 +12,10 @@ local cfg = {
     esp_maxDist = 500,
     gun_esp = true,
     aim_on = false,
-    aim_maxDist = 120,
-    aim_smoothBase = 2.0,
+    aim_maxDist = 150,
+    aim_smoothness = 4,      -- Düşük = hızlı takip (2-5 arası)
+    aim_prediction = true,   -- Hareket tahmini AÇIK
+    aim_prediction_mult = 0.6, -- Tahmin gücü
     speed_on = false,
     speed_value = 30,
     team_check = false
@@ -236,13 +238,21 @@ local function updateGunESP()
     end
 end
 
--- ===== ŞERİF AIMBOT =====
+-- ==============================================
+-- GELİŞMİŞ AIMBOT (Hareket Tahmini + Yumuşak Takip)
+-- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
     if not myChar then return false end
-    for _, v in ipairs(myChar:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end
+    for _, v in ipairs(myChar:GetChildren()) do 
+        if v:IsA("Tool") and v.Name == "Gun" then return true end 
+    end
     local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then for _, v in ipairs(bp:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end end
+    if bp then 
+        for _, v in ipairs(bp:GetChildren()) do 
+            if v:IsA("Tool") and v.Name == "Gun" then return true end 
+        end 
+    end
     return false
 end
 
@@ -251,45 +261,92 @@ local function getClosestMurderer()
     local myChar = LocalPlayer.Character
     if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
     local myPos = myChar.HumanoidRootPart.Position
+    local myVelocity = myChar.HumanoidRootPart.Velocity or Vector3.zero
+    
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer or getPlayerRole(plr) ~= "Murderer" then continue end
+        if plr == LocalPlayer then continue end
+        if getPlayerRole(plr) ~= "Murderer" then continue end
+        
         local char = plr.Character
         if not char then continue end
-        local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
+        
+        local head = char:FindFirstChild("Head")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
         if not (head or hrp) then continue end
+        
+        -- Hedef pozisyonu (Head öncelikli)
         local targetPos = head and head.Position or hrp.Position
         local dist = (myPos - targetPos).Magnitude
-        if dist < bestDist then bestDist = dist best = plr end
+        
+        if dist < bestDist then
+            bestDist = dist
+            best = plr
+        end
     end
     return best
+end
+
+local function getPredictedPosition(targetPlayer)
+    local char = targetPlayer.Character
+    if not char then return nil end
+    
+    local head = char:FindFirstChild("Head")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not (head or hrp) then return nil end
+    
+    local targetPos = head and head.Position or hrp.Position
+    local targetVelocity = hrp.Velocity or Vector3.zero
+    
+    -- Mermi hızı tahmini (MM2'de mermi anlık vurur ama yine de hareket tahmini ekleyelim)
+    local bulletSpeed = 350 -- Varsayılan mermi hızı
+    local dist = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
+                 (LocalPlayer.Character.HumanoidRootPart.Position - targetPos).Magnitude) or 100
+    
+    if cfg.aim_prediction and targetVelocity.Magnitude > 2 then
+        local travelTime = dist / bulletSpeed
+        targetPos = targetPos + (targetVelocity * travelTime * cfg.aim_prediction_mult)
+    end
+    
+    return targetPos
 end
 
 local function aimAt(targetPlayer)
     local char = targetPlayer.Character
     if not char then return end
-    local head, hrp = char:FindFirstChild("Head"), char:FindFirstChild("HumanoidRootPart")
-    local targetPart = head or hrp
-    if not targetPart then return end
-    local targetPos = targetPart.Position
+    
+    local targetPos = getPredictedPosition(targetPlayer)
+    if not targetPos then return end
+    
     local camPos = Camera.CFrame.Position
-    Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(camPos, targetPos), 1 / cfg.aim_smoothBase)
+    
+    -- Kamera'yı hedefe çevir (yumuşak)
+    local targetCFrame = CFrame.lookAt(camPos, targetPos)
+    local smoothFactor = 1 / cfg.aim_smoothness
+    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, smoothFactor)
+    
+    -- Karakteri de hedefe döndür
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
         local flatTarget = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
-        pcall(function() root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), 1 / cfg.aim_smoothBase) end)
+        pcall(function()
+            root.CFrame = root.CFrame:Lerp(CFrame.lookAt(root.Position, flatTarget), smoothFactor)
+        end)
     end
 end
 
 local function updateAimbot()
-    if not cfg.aim_on or getPlayerRole(LocalPlayer) ~= "Sheriff" or not hasGun() then return end
+    if not cfg.aim_on then return end
+    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
+    if not hasGun() then return end
+    
     local target = getClosestMurderer()
     if target then aimAt(target) end
 end
 
--- ===== SPEED HACK (EN BASİT HALİ) =====
+-- ===== SPEED HACK =====
 local function updateSpeed()
     local char = LocalPlayer.Character
     if not char then return end
@@ -303,6 +360,11 @@ local function updateSpeed()
         end
     end
 end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(0.5)
+    updateSpeed()
+end)
 
 -- ==============================================
 -- PANEL
@@ -454,10 +516,8 @@ local function createPanel()
     addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
     addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
     addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
-    espPage.Visible = true
-    activePage = espPage
 
-    -- Şerif Sayfası
+    -- Şerif Sayfası (GELİŞMİŞ AIMBOT)
     local sheriffPage = createPage()
     addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
 
@@ -485,11 +545,8 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 
 createPanel()
-
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(0.5)
-    updateSpeed()
-end)
+wait(0.5)
+updateSpeed()
 
 RunService.RenderStepped:Connect(function()
     pcall(function()
@@ -500,4 +557,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! Speed Hack çalışıyor.")
+print("🔪 MM2 yuklendi gelismis aimbot  aktif (hareket tahmini ile).")
