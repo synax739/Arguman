@@ -1,4 +1,4 @@
--- MM2 - ESP + GUN ESP + PANEL (ÇALIŞIR - Hata Düzeltmeli)
+-- MM2 - ESP + GUN ESP + ŞERİF AIM + SPEED (ÇALIŞIR - GÜVENLİ)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,7 +11,10 @@ local cfg = {
     esp_dist = true,
     esp_maxDist = 500,
     gun_esp = true,
-    team_check = false
+    team_check = false,
+    aim_on = false,
+    speed_on = false,
+    speed_value = 30
 }
 
 local gunESPObjects = {}
@@ -25,7 +28,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- GÜVENLİ POZİSYON KONTROLÜ
+-- GÜVENLİ POZİSYON KONTROLÜ (INVALID POSITION ÖNLEYİCİ)
 -- ==============================================
 local function isValidVector(v)
     return v and type(v) == "Vector3" and v.X == v.X and v.Y == v.Y and v.Z == v.Z and v.Magnitude < 1e6
@@ -268,6 +271,105 @@ local function updateGunESP()
     end
 end
 
+-- ===== ŞERİF AIMBOT =====
+local function hasGun()
+    local myChar = LocalPlayer.Character
+    if not myChar then return false end
+    for _, v in ipairs(myChar:GetChildren()) do 
+        if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
+            return true 
+        end 
+    end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then 
+        for _, v in ipairs(bp:GetChildren()) do 
+            if v:IsA("Tool") and (v.Name == "Gun" or v.Name == "Sheriff" or v.Name == "Revolver" or v.Name == "Pistol") then 
+                return true 
+            end 
+        end 
+    end
+    return false
+end
+
+local function getClosestMurderer()
+    local best, bestDist = nil, 120
+    local myChar = LocalPlayer.Character
+    if not myChar then return nil end
+    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local myPos = getSafePosition(myRoot)
+    if not myPos then return nil end
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if getPlayerRole(plr) ~= "Murderer" then continue end
+        
+        local char = plr.Character
+        if not char then continue end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+        local targetPos = getSafePosition(hrp)
+        if not targetPos then continue end
+        
+        local dist = (myPos - targetPos).Magnitude
+        if dist < bestDist then
+            bestDist = dist
+            best = plr
+        end
+    end
+    return best
+end
+
+local function aimAt(targetPlayer)
+    local char = targetPlayer.Character
+    if not char then return end
+    
+    local head = char:FindFirstChild("Head")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local targetPart = head or hrp
+    if not targetPart then return end
+    
+    local targetPos = getSafePosition(targetPart)
+    if not targetPos then return end
+    
+    local camPos = Camera.CFrame.Position
+    if not isValidVector(camPos) then return end
+    
+    pcall(function()
+        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+    end)
+end
+
+local function updateAimbot()
+    if not cfg.aim_on then return end
+    if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
+    if not hasGun() then return end
+    
+    local target = getClosestMurderer()
+    if target then aimAt(target) end
+end
+
+-- ===== SPEED HACK =====
+local function updateSpeed()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    if cfg.speed_on then
+        hum.WalkSpeed = cfg.speed_value
+    else
+        if hum.WalkSpeed == cfg.speed_value then
+            hum.WalkSpeed = 16
+        end
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(0.5)
+    updateSpeed()
+end)
+
 -- ===== PANEL =====
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -286,7 +388,7 @@ local function createPanel()
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 280, 0, 250)
+    panel.Size = UDim2.new(0, 280, 0, 310)
     panel.Position = UDim2.new(1, -295, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
@@ -344,7 +446,7 @@ local function createPanel()
         btn.BackgroundTransparency = 0.15
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
         btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.TextSize = 13
+        btn.TextSize = 12
         btn.Font = Enum.Font.SourceSans
         btn.BorderSizePixel = 0
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
@@ -364,6 +466,11 @@ local function createPanel()
     addToggle("Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
     addToggle("Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
     addToggle("Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
+    addToggle("Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 195)
+    addToggle("Speed Hack", cfg.speed_on, function(v) 
+        cfg.speed_on = v 
+        updateSpeed()
+    end, 233)
 
     openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
@@ -377,12 +484,16 @@ Players.PlayerRemoving:Connect(function(p)
 end)
 
 createPanel()
+wait(0.5)
+updateSpeed()
 
 RunService.RenderStepped:Connect(function()
     pcall(function()
         updateESP()
         updateGunESP()
+        updateAimbot()
+        updateSpeed()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! ESP + Gun ESP aktif. Invalid position hatası önlendi.")
+print("🔪 MM2 FULL Yüklendi! ESP + Gun ESP + Şerif Aim + Speed aktif. Invalid position hatası önlendi.")
