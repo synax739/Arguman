@@ -1,4 +1,4 @@
--- MM2 - ESP + GUN ESP + ŞERİF AIM + SPEED (ÇALIŞIR - GÜVENLİ)
+-- MM2 - ESP + GUN ESP + ŞERİF AIM + SPEED (YAN MENÜLÜ PANEL)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -28,7 +28,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- GÜVENLİ POZİSYON KONTROLÜ (INVALID POSITION ÖNLEYİCİ)
+-- GÜVENLİ POZİSYON KONTROLÜ
 -- ==============================================
 local function isValidVector(v)
     return v and type(v) == "Vector3" and v.X == v.X and v.Y == v.Y and v.Z == v.Z and v.Magnitude < 1e6
@@ -370,12 +370,15 @@ LocalPlayer.CharacterAdded:Connect(function()
     updateSpeed()
 end)
 
--- ===== PANEL =====
+-- ==============================================
+-- YAN MENÜLÜ PANEL (DİKDÖRTGEN)
+-- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     gui.ResetOnSpawn = false
 
+    -- Aç/Kapa Butonu
     local openBtn = Instance.new("TextButton", gui)
     openBtn.Size = UDim2.new(0, 50, 0, 50)
     openBtn.Position = UDim2.new(1, -60, 0, 10)
@@ -387,9 +390,10 @@ local function createPanel()
     openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
+    -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 280, 0, 310)
-    panel.Position = UDim2.new(1, -295, 0, 70)
+    panel.Size = UDim2.new(0, 340, 0, 320)
+    panel.Position = UDim2.new(1, -355, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     panel.BackgroundTransparency = 0.05
     panel.BorderSizePixel = 0
@@ -432,16 +436,34 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- İçerik
-    local content = Instance.new("Frame", panel)
-    content.Size = UDim2.new(1, -20, 1, -45)
-    content.Position = UDim2.new(0, 10, 0, 40)
-    content.BackgroundTransparency = 1
+    -- ===== SOL MENÜ (Kategoriler) =====
+    local menuFrame = Instance.new("Frame", panel)
+    menuFrame.Size = UDim2.new(0, 85, 1, -35)
+    menuFrame.Position = UDim2.new(0, 0, 0, 35)
+    menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
+    menuFrame.BorderSizePixel = 0
 
-    local function addToggle(name, default, callback, yPos)
-        local btn = Instance.new("TextButton", content)
-        btn.Size = UDim2.new(1, 0, 0, 34)
-        btn.Position = UDim2.new(0, 0, 0, yPos)
+    -- ===== SAĞ İÇERİK =====
+    local contentFrame = Instance.new("Frame", panel)
+    contentFrame.Size = UDim2.new(1, -85, 1, -35)
+    contentFrame.Position = UDim2.new(0, 85, 0, 35)
+    contentFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
+    contentFrame.BorderSizePixel = 0
+
+    -- Sayfa oluşturucu
+    local function createPage()
+        local page = Instance.new("Frame", contentFrame)
+        page.Size = UDim2.new(1, 0, 1, 0)
+        page.BackgroundTransparency = 1
+        page.Visible = false
+        return page
+    end
+
+    -- Toggle oluşturucu
+    local function addToggle(parent, name, default, callback, yPos)
+        local btn = Instance.new("TextButton", parent)
+        btn.Size = UDim2.new(1, -10, 0, 34)
+        btn.Position = UDim2.new(0, 5, 0, yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
         btn.BackgroundTransparency = 0.15
         btn.Text = name .. ": " .. (default and "AÇIK" or "KAPALI")
@@ -461,17 +483,70 @@ local function createPanel()
         end)
     end
 
-    addToggle("ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
-    addToggle("Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
-    addToggle("Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
-    addToggle("Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
-    addToggle("Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
-    addToggle("Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 195)
-    addToggle("Speed Hack", cfg.speed_on, function(v) 
-        cfg.speed_on = v 
-        updateSpeed()
-    end, 233)
+    -- Menü butonu oluşturucu
+    local activePage = nil
+    local activeBtn = nil
+    local function createMenuButton(name, y, page)
+        local btn = Instance.new("TextButton", menuFrame)
+        btn.Size = UDim2.new(1, 0, 0, 40)
+        btn.Position = UDim2.new(0, 0, 0, y)
+        btn.BackgroundTransparency = 1
+        btn.Text = name
+        btn.TextColor3 = Color3.fromRGB(160, 160, 190)
+        btn.TextSize = 13
+        btn.Font = Enum.Font.SourceSansBold
+        btn.BorderSizePixel = 0
 
+        btn.Activated:Connect(function()
+            if activeBtn then
+                activeBtn.BackgroundTransparency = 1
+                activeBtn.TextColor3 = Color3.fromRGB(160, 160, 190)
+            end
+            btn.BackgroundTransparency = 0.2
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            activeBtn = btn
+
+            if activePage then activePage.Visible = false end
+            page.Visible = true
+            activePage = page
+        end)
+
+        if y == 10 then
+            btn.BackgroundTransparency = 0.2
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            activeBtn = btn
+        end
+    end
+
+    -- ===== SAYFALAR =====
+
+    -- ESP Sayfası
+    local espPage = createPage()
+    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
+    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
+    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
+    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
+    espPage.Visible = true
+    activePage = espPage
+
+    -- Şerif Sayfası
+    local sheriffPage = createPage()
+    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
+
+    -- Katil Sayfası
+    local killerPage = createPage()
+    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
+        cfg.speed_on = v
+        updateSpeed()
+    end, 5)
+
+    -- Menü butonları
+    createMenuButton("🔍 ESP", 10, espPage)
+    createMenuButton("🔫 Şerif", 55, sheriffPage)
+    createMenuButton("🔪 Katil", 100, killerPage)
+
+    -- Aç/Kapa
     openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
@@ -496,4 +571,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 FULL Yüklendi! ESP + Gun ESP + Şerif Aim + Speed aktif. Invalid position hatası önlendi.")
+print("🔪 MM2 Yüklendi! Yan menülü panel aktif. Invalid position hatası önlendi.")
