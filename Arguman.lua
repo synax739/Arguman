@@ -1,9 +1,11 @@
--- MM2 - ESP + GUN ESP + ŞERİF AIM + SPEED (YAN MENÜLÜ PANEL)
+-- MM2 - ESP + GUN ESP + ŞERİF AIM + SPEED (HATA AYIKLAMALI)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+
+print("🔍 SCRIPT BAŞLADI!")
 
 local cfg = {
     esp_on = true,
@@ -71,7 +73,12 @@ end
 
 local function newDrawing(t)
     local ok, d = pcall(function() return Drawing.new(t) end)
-    return ok and d or nil
+    if ok and d then
+        return d
+    else
+        warn("❌ Drawing.new başarısız:", t)
+        return nil
+    end
 end
 
 local function isInFront(pos)
@@ -130,6 +137,7 @@ local function getBox(character)
 end
 
 local function updateESP()
+    print("🔄 updateESP çalıştı, esp_on:", cfg.esp_on) -- HATA AYIKLAMA
     if not cfg.esp_on then
         for plr, d in pairs(ESPData) do
             for _, v in pairs(d) do v.Visible = false end
@@ -200,6 +208,7 @@ end
 
 -- ===== GUN ESP =====
 local function updateGunESP()
+    print("🔄 updateGunESP çalıştı, gun_esp:", cfg.gun_esp) -- HATA AYIKLAMA
     if not cfg.gun_esp then
         for _, obj in pairs(gunESPObjects) do
             pcall(function() obj.box:Remove() end)
@@ -371,14 +380,13 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 -- ==============================================
--- YAN MENÜLÜ PANEL (DİKDÖRTGEN)
+-- YAN MENÜLÜ PANEL
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
     gui.ResetOnSpawn = false
 
-    -- Aç/Kapa Butonu
     local openBtn = Instance.new("TextButton", gui)
     openBtn.Size = UDim2.new(0, 50, 0, 50)
     openBtn.Position = UDim2.new(1, -60, 0, 10)
@@ -390,7 +398,6 @@ local function createPanel()
     openBtn.BorderSizePixel = 0
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Ana Panel (Dikdörtgen)
     local panel = Instance.new("Frame", gui)
     panel.Size = UDim2.new(0, 340, 0, 320)
     panel.Position = UDim2.new(1, -355, 0, 70)
@@ -400,7 +407,6 @@ local function createPanel()
     panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
 
-    -- Sürükleme
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -425,7 +431,6 @@ local function createPanel()
         end
     end)
 
-    -- Başlık
     local title = Instance.new("TextLabel", panel)
     title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
@@ -436,21 +441,20 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- ===== SOL MENÜ (Kategoriler) =====
+    -- Sol Menü
     local menuFrame = Instance.new("Frame", panel)
     menuFrame.Size = UDim2.new(0, 85, 1, -35)
     menuFrame.Position = UDim2.new(0, 0, 0, 35)
     menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
     menuFrame.BorderSizePixel = 0
 
-    -- ===== SAĞ İÇERİK =====
+    -- Sağ İçerik
     local contentFrame = Instance.new("Frame", panel)
     contentFrame.Size = UDim2.new(1, -85, 1, -35)
     contentFrame.Position = UDim2.new(0, 85, 0, 35)
     contentFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
     contentFrame.BorderSizePixel = 0
 
-    -- Sayfa oluşturucu
     local function createPage()
         local page = Instance.new("Frame", contentFrame)
         page.Size = UDim2.new(1, 0, 1, 0)
@@ -459,7 +463,6 @@ local function createPanel()
         return page
     end
 
-    -- Toggle oluşturucu
     local function addToggle(parent, name, default, callback, yPos)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1, -10, 0, 34)
@@ -480,10 +483,10 @@ local function createPanel()
             btn.BackgroundColor3 = toggled and Color3.fromRGB(0, 180, 80) or Color3.fromRGB(180, 50, 50)
             btn.BackgroundTransparency = 0.15
             callback(toggled)
+            print("🔄 Toggle değişti:", name, toggled) -- HATA AYIKLAMA
         end)
     end
 
-    -- Menü butonu oluşturucu
     local activePage = nil
     local activeBtn = nil
     local function createMenuButton(name, y, page)
@@ -518,8 +521,6 @@ local function createPanel()
         end
     end
 
-    -- ===== SAYFALAR =====
-
     -- ESP Sayfası
     local espPage = createPage()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
@@ -541,12 +542,10 @@ local function createPanel()
         updateSpeed()
     end, 5)
 
-    -- Menü butonları
     createMenuButton("🔍 ESP", 10, espPage)
     createMenuButton("🔫 Şerif", 55, sheriffPage)
     createMenuButton("🔪 Katil", 100, killerPage)
 
-    -- Aç/Kapa
     openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
@@ -571,4 +570,4 @@ RunService.RenderStepped:Connect(function()
     end)
 end)
 
-print("🔪 MM2 Yüklendi! Yan menülü panel aktif. Invalid position hatası önlendi.")
+print("🔪 MM2 Yüklendi! Konsoldaki mesajları kontrol et.")
