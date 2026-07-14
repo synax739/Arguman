@@ -1,4 +1,4 @@
--- // Delta Mobil – MM2: Kompakt Panel + ESP + Gelişmiş Aimbot + Dropped Gun
+-- // Delta Mobil – MM2: Düzeltilmiş Panel + ESP + Dropped Gun + Aimbot + Jump
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
+-- AYARLAR
 local cfg = {
     esp_on = true,
     esp_box = true,
@@ -33,7 +34,7 @@ local ROLE_COLORS = {
 }
 
 -- ==============================================
--- ROL TESPİTİ
+-- ROL TESPİTİ (Her kare)
 -- ==============================================
 local function getPlayerRole(plr)
     local char = plr.Character
@@ -101,7 +102,7 @@ local function removeESP(plr)
 end
 
 -- ==============================================
--- AIMBOT (Anlık, sapmasız)
+-- AIMBOT (anlık, gövde)
 -- ==============================================
 local function hasGun()
     local myChar = LocalPlayer.Character
@@ -140,19 +141,14 @@ local function aimAt(targetPlayer)
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     
-    -- Hedef pozisyonu: Gövde ortası
     local targetPos = hrp.Position + Vector3.new(0, 1, 0)
     if targetPos ~= targetPos then return end
     
     local camPos = Camera.CFrame.Position
     if camPos ~= camPos then return end
     
-    -- Anında kilitlenme (Lerp yok, direkt CFrame)
-    pcall(function()
-        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
-    end)
+    pcall(function() Camera.CFrame = CFrame.lookAt(camPos, targetPos) end)
 
-    -- Karakteri de yatayda döndür
     local myChar = LocalPlayer.Character
     if myChar and myChar:FindFirstChild("HumanoidRootPart") then
         local root = myChar.HumanoidRootPart
@@ -160,9 +156,7 @@ local function aimAt(targetPlayer)
         if flatTarget ~= flatTarget then return end
         local hum = myChar:FindFirstChildOfClass("Humanoid")
         if hum then hum.AutoRotate = false end
-        pcall(function()
-            root.CFrame = CFrame.lookAt(root.Position, flatTarget)
-        end)
+        pcall(function() root.CFrame = CFrame.lookAt(root.Position, flatTarget) end)
     end
 end
 
@@ -180,7 +174,7 @@ end
 LocalPlayer.CharacterAdded:Connect(function() if cfg.speed_on then wait(0.2) applySpeed() end end)
 
 -- ==============================================
--- ZIPLAMA BUTONU
+-- ZIPLAMA BUTONU (sürüklenebilir, ayrı)
 -- ==============================================
 local function createJumpButton()
     if jumpButton then jumpButton:Destroy() end
@@ -198,6 +192,20 @@ local function createJumpButton()
     btn.TextSize = 22
     btn.Visible = cfg.jump_on
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local drag, dragStart, startPos = false, nil, nil
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true dragStart = input.Position startPos = btn.Position
+        end
+    end)
+    btn.InputEnded:Connect(function() drag = false end)
+    btn.InputChanged:Connect(function(input)
+        if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local d = input.Position - dragStart
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
 
     btn.Activated:Connect(function()
         if not cfg.jump_on then return end
@@ -221,11 +229,11 @@ local function createJumpButton()
 end
 
 -- ==============================================
--- KOMPAKT PANEL (Küçük, sürüklenebilir)
+-- PANEL (başlıkla sürüklenebilir, orta boyut)
 -- ==============================================
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
-    gui.Name = "MM2Mini"
+    gui.Name = "MM2Panel"
 
     -- Açma butonu (küçük yuvarlak)
     local openBtn = Instance.new("TextButton", gui)
@@ -238,38 +246,51 @@ local function createPanel()
     openBtn.TextSize = 16
     Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
 
-    -- Kompakt panel
+    -- Panel
     local panel = Instance.new("Frame", gui)
-    panel.Size = UDim2.new(0, 160, 0, 110)
-    panel.Position = UDim2.new(1, -170, 0, 50)
+    panel.Size = UDim2.new(0, 170, 0, 140)
+    panel.Position = UDim2.new(1, -180, 0, 50)
     panel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 6)
 
+    -- Başlık çubuğu (sürükleme buradan yapılır)
+    local header = Instance.new("Frame", panel)
+    header.Size = UDim2.new(1, 0, 0, 22)
+    header.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    local headerText = Instance.new("TextLabel", header)
+    headerText.Size = UDim2.new(1, 0, 1, 0)
+    headerText.BackgroundTransparency = 1
+    headerText.Text = "MM2 Panel"
+    headerText.TextColor3 = Color3.new(1,1,1)
+    headerText.Font = Enum.Font.SourceSansBold
+    headerText.TextSize = 12
+
     -- Sürükleme
     local drag, dragStart, startPos = false, nil, nil
-    panel.InputBegan:Connect(function(input)
+    header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             drag = true dragStart = input.Position startPos = panel.Position
         end
     end)
-    panel.InputEnded:Connect(function() drag = false end)
-    panel.InputChanged:Connect(function(input)
+    header.InputEnded:Connect(function() drag = false end)
+    header.InputChanged:Connect(function(input)
         if drag and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local d = input.Position - dragStart
             panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
         end
     end)
 
+    -- Toggle butonları
     local function addToggle(yPos, name, default, callback)
         local btn = Instance.new("TextButton", panel)
-        btn.Size = UDim2.new(1, -10, 0, 22)
+        btn.Size = UDim2.new(1, -10, 0, 24)
         btn.Position = UDim2.new(0, 5, 0, yPos)
         btn.BackgroundColor3 = default and Color3.fromRGB(0, 140, 0) or Color3.fromRGB(140, 0, 0)
         btn.Text = name .. ": " .. (default and "ON" or "OFF")
         btn.TextColor3 = Color3.new(1,1,1)
         btn.Font = Enum.Font.SourceSans
-        btn.TextSize = 11
+        btn.TextSize = 12
         local toggled = default
         btn.Activated:Connect(function()
             toggled = not toggled
@@ -279,17 +300,19 @@ local function createPanel()
         end)
     end
 
-    addToggle(3, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end)
-    addToggle(28, "Dropped Gun", cfg.dropped_esp, function(v) cfg.dropped_esp = v end)
-    addToggle(53, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end)
-    addToggle(78, "Speed", cfg.speed_on, function(v)
+    addToggle(25, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end)
+    addToggle(52, "Dropped Gun", cfg.dropped_esp, function(v) cfg.dropped_esp = v end)
+    addToggle(79, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end)
+    addToggle(106, "Speed", cfg.speed_on, function(v)
         cfg.speed_on = v
         if v then applySpeed() else pcall(function() if LocalPlayer.Character then local h = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed = 16 end end end) end
     end)
-
-    openBtn.Activated:Connect(function()
-        panel.Visible = not panel.Visible
+    addToggle(133, "Sınırsız Zıpla", cfg.jump_on, function(v)
+        cfg.jump_on = v
+        if jumpButton then jumpButton.Visible = v end
     end)
+
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
 end
 
 -- ==============================================
@@ -341,66 +364,61 @@ RunService.RenderStepped:Connect(function()
         local role = getPlayerRole(plr)
         local color = ROLE_COLORS[role] or ROLE_COLORS.Unknown
 
-        if cfg.esp_box and d.box then
-            d.box.Visible = true d.box.Position = Vector2.new(x, y) d.box.Size = Vector2.new(w, h) d.box.Color = color
-        else
-            if d.box then d.box.Visible = false end
-        end
-        if cfg.esp_dist and d.dist then
-            d.dist.Visible = true d.dist.Text = math.floor(dist) .. "m" d.dist.Color = color d.dist.Position = Vector2.new(cx, y + h + 2)
-        else
-            if d.dist then d.dist.Visible = false end
-        end
-        if cfg.esp_role and d.role then
-            d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = Vector2.new(cx, y - 15)
-        else
-            if d.role then d.role.Visible = false end
-        end
+        if cfg.esp_box and d.box then d.box.Visible = true d.box.Position = Vector2.new(x, y) d.box.Size = Vector2.new(w, h) d.box.Color = color
+        elseif d.box then d.box.Visible = false end
+        if cfg.esp_dist and d.dist then d.dist.Visible = true d.dist.Text = math.floor(dist) .. "m" d.dist.Color = color d.dist.Position = Vector2.new(cx, y + h + 2)
+        elseif d.dist then d.dist.Visible = false end
+        if cfg.esp_role and d.role then d.role.Visible = true d.role.Text = role d.role.Color = color d.role.Position = Vector2.new(cx, y - 15)
+        elseif d.role then d.role.Visible = false end
     end
 
-    -- DROPPED GUN ESP (her kare workspace'i tara)
+    -- DROPPED GUN ESP (tüm olası silah isimleri)
     if cfg.dropped_esp then
         pcall(function()
             for _, obj in ipairs(workspace:GetChildren()) do
-                if obj:IsA("Tool") and obj.Name == "Gun" then
-                    local handle = obj:FindFirstChild("Handle")
-                    if handle then
-                        local pos = handle.Position
-                        if pos ~= pos then continue end
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-                        if onScreen then
-                            if not droppedGunESP[obj] then
-                                droppedGunESP[obj] = {
-                                    box = newDrawing("Square"),
-                                    text = newDrawing("Text")
-                                }
-                                if droppedGunESP[obj].box then
-                                    droppedGunESP[obj].box.Thickness = 2
-                                    droppedGunESP[obj].box.Filled = false
+                if obj:IsA("Tool") then
+                    local name = obj.Name
+                    -- Olası şerif silahı isimleri
+                    if name == "Gun" or name == "Pistol" or name == "Revolver" or name == "SheriffGun" or name == "Sheriff" or name:lower():find("gun") or name:lower():find("pistol") then
+                        local handle = obj:FindFirstChild("Handle")
+                        if handle then
+                            local pos = handle.Position
+                            if pos ~= pos then continue end
+                            local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+                            if onScreen then
+                                if not droppedGunESP[obj] then
+                                    droppedGunESP[obj] = {
+                                        box = newDrawing("Square"),
+                                        text = newDrawing("Text")
+                                    }
+                                    if droppedGunESP[obj].box then
+                                        droppedGunESP[obj].box.Thickness = 2
+                                        droppedGunESP[obj].box.Filled = false
+                                    end
+                                    if droppedGunESP[obj].text then
+                                        droppedGunESP[obj].text.Size = 12
+                                        droppedGunESP[obj].text.Center = true
+                                        droppedGunESP[obj].text.Outline = true
+                                        droppedGunESP[obj].text.Color = Color3.new(1, 0.5, 0)
+                                    end
                                 end
-                                if droppedGunESP[obj].text then
-                                    droppedGunESP[obj].text.Size = 12
-                                    droppedGunESP[obj].text.Center = true
-                                    droppedGunESP[obj].text.Outline = true
-                                    droppedGunESP[obj].text.Color = Color3.new(1, 0.5, 0)
+                                local dg = droppedGunESP[obj]
+                                if dg.box then
+                                    dg.box.Visible = true
+                                    dg.box.Position = Vector2.new(screenPos.X - 10, screenPos.Y - 10)
+                                    dg.box.Size = Vector2.new(20, 20)
+                                    dg.box.Color = Color3.new(1, 0.5, 0)
                                 end
-                            end
-                            local dg = droppedGunESP[obj]
-                            if dg.box then
-                                dg.box.Visible = true
-                                dg.box.Position = Vector2.new(screenPos.X - 10, screenPos.Y - 10)
-                                dg.box.Size = Vector2.new(20, 20)
-                                dg.box.Color = Color3.new(1, 0.5, 0)
-                            end
-                            if dg.text then
-                                dg.text.Visible = true
-                                dg.text.Text = "GUN"
-                                dg.text.Position = Vector2.new(screenPos.X, screenPos.Y - 20)
-                            end
-                        else
-                            if droppedGunESP[obj] then
-                                if droppedGunESP[obj].box then droppedGunESP[obj].box.Visible = false end
-                                if droppedGunESP[obj].text then droppedGunESP[obj].text.Visible = false end
+                                if dg.text then
+                                    dg.text.Visible = true
+                                    dg.text.Text = "GUN"
+                                    dg.text.Position = Vector2.new(screenPos.X, screenPos.Y - 20)
+                                end
+                            else
+                                if droppedGunESP[obj] then
+                                    if droppedGunESP[obj].box then droppedGunESP[obj].box.Visible = false end
+                                    if droppedGunESP[obj].text then droppedGunESP[obj].text.Visible = false end
+                                end
                             end
                         end
                     end
@@ -425,7 +443,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
 
-    -- AIMBOT (anında kilitlenme)
+    -- AIMBOT
     if cfg.aim_on and getPlayerRole(LocalPlayer) == "Sheriff" and hasGun() then
         local target = getClosestMurderer()
         if target then aimAt(target) end
@@ -436,4 +454,6 @@ Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
 
 createPanel()
 createJumpButton()
-print("✅ MM2 Mini Panel + ESP + Dropped Gun + Aimbot + Speed + Jump aktif!")
+applySpeed()
+
+print("✅ MM2: Panel sürüklenebilir, Dropped Gun geniş tarama, Aimbot anlık!")
