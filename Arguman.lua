@@ -1,9 +1,10 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack + OTOMATİK SİLAH KAPMA (DÜZELTİLDİ)
+-- MM2 ULTIMATE - PARÇA 1/2 (Fonksiyonlar ve Ayarlar)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
 local cfg = {
     esp_on = true,
@@ -32,13 +33,12 @@ local ROLE_COLORS = {
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
 
--- ===== ROL TESPİTİ (GENİŞLETİLDİ) =====
+-- ===== ROL TESPİTİ =====
 local function getPlayerRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
-    local backpack = plr:FindFirstChild("Backpack") or plr
-    
-    -- Backpack'te silah/knife kontrolü
+    local backpack = plr:FindFirstChild("Backpack")
+
     if backpack then
         for _, item in ipairs(backpack:GetChildren()) do
             if item:IsA("Tool") then
@@ -48,8 +48,7 @@ local function getPlayerRole(plr)
             end
         end
     end
-    
-    -- Karakterde silah/knife kontrolü
+
     if char then
         for _, item in ipairs(char:GetChildren()) do
             if item:IsA("Tool") then
@@ -61,8 +60,7 @@ local function getPlayerRole(plr)
         if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then return "Murderer" end
         if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then return "Sheriff" end
     end
-    
-    -- Role StringValue
+
     local roleObj = plr:FindFirstChild("Role") or plr:FindFirstChild("PlayerRole")
     if roleObj and roleObj:IsA("StringValue") then
         local roleName = roleObj.Value
@@ -70,7 +68,7 @@ local function getPlayerRole(plr)
         if roleName == "Sheriff" or roleName == "Hero" then return "Sheriff" end
         if roleName == "Innocent" or roleName == "Civilian" then return "Innocent" end
     end
-    
+
     return "Innocent"
 end
 
@@ -88,7 +86,6 @@ end
 local function hasGun()
     local char = LocalPlayer.Character
     if not char then return false end
-    -- Karakterdeki tool'ları kontrol et
     for _, v in ipairs(char:GetChildren()) do
         if v:IsA("Tool") then
             local name = v.Name
@@ -97,7 +94,6 @@ local function hasGun()
             end
         end
     end
-    -- Backpack'i kontrol et
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if bp then
         for _, v in ipairs(bp:GetChildren()) do
@@ -247,7 +243,7 @@ local function updateGunESP()
                 local box = newDrawing("Square")
                 local text = newDrawing("Text")
                 local distLabel = newDrawing("Text")
-                
+
                 if box then
                     box.Thickness = 2
                     box.Filled = false
@@ -256,7 +252,7 @@ local function updateGunESP()
                     box.Size = Vector2.new(40, 40)
                     box.Visible = true
                 end
-                
+
                 if text then
                     text.Size = 14
                     text.Center = true
@@ -266,7 +262,7 @@ local function updateGunESP()
                     text.Position = Vector2.new(screenPos.X, screenPos.Y - 30)
                     text.Visible = true
                 end
-                
+
                 if distLabel then
                     distLabel.Size = 12
                     distLabel.Center = true
@@ -276,7 +272,7 @@ local function updateGunESP()
                     distLabel.Position = Vector2.new(screenPos.X, screenPos.Y + 25)
                     distLabel.Visible = true
                 end
-                
+
                 gunESPObjects[obj] = {box = box, text = text, dist = distLabel}
             end
         end
@@ -342,7 +338,7 @@ local function updateSpeed()
     end
 end
 
--- ===== SİLAH KAPMA (DÜZELTİLDİ) =====
+-- ===== SİLAH KAPMA (TELEPORT) =====
 local function grabGunAndReturn()
     if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
     if hasGun() then return end
@@ -374,9 +370,7 @@ local function grabGunAndReturn()
     hrp.CFrame = CFrame.new(closest.Position + Vector3.new(0, 2, 0))
     task.wait(0.3)
 
-    -- Silahı aldık mı?
     local success = hasGun()
-    -- Eğer olmadıysa, belki tool olarak eklenmiştir, tekrar dene
     if not success then
         task.wait(0.2)
         success = hasGun()
@@ -392,6 +386,11 @@ local function grabGunAndReturn()
         print("❌ Silah alınamadı, tekrar deneniyor...")
     end
 end
+
+-- PARÇA 1 SONU
+
+
+-- MM2 ULTIMATE - PARÇA 2/2 (Panel ve Başlatma)
 
 -- ===== PANEL =====
 local function createPanel()
@@ -419,7 +418,6 @@ local function createPanel()
     panel.Visible = false
     Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
 
-    -- Sürükleme
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -454,7 +452,6 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Menü
     local menuFrame = Instance.new("Frame", panel)
     menuFrame.Size = UDim2.new(0, 80, 1, -35)
     menuFrame.Position = UDim2.new(0, 0, 0, 35)
@@ -532,7 +529,7 @@ local function createPanel()
         end
     end
 
-    -- Sayfalar
+    -- SAYFALAR
     local espPage = createPage()
     addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
     addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
@@ -543,4 +540,60 @@ local function createPanel()
     activePage = espPage
 
     local sheriffPage = createPage()
-    addToggle(sheriffPage, "Şerif Aim", 
+    addToggle(sheriffPage, "Şerif Aim", cfg.aim_on, function(v) cfg.aim_on = v end, 5)
+    addToggle(sheriffPage, "Silah Kapma", cfg.gun_grab, function(v)
+        cfg.gun_grab = v
+        print("Silah Kapma: " .. (v and "AÇIK" or "KAPALI"))
+    end, 43)
+
+    local killerPage = createPage()
+    addToggle(killerPage, "Speed Hack", cfg.speed_on, function(v)
+        cfg.speed_on = v
+        updateSpeed()
+    end, 5)
+
+    createMenuButton("🔍 ESP", 10, espPage)
+    createMenuButton("🔫 Şerif", 55, sheriffPage)
+    createMenuButton("🔪 Katil", 100, killerPage)
+
+    openBtn.Activated:Connect(function() panel.Visible = not panel.Visible end)
+end
+
+-- ===== BAŞLAT =====
+Players.PlayerRemoving:Connect(function(p)
+    if ESPData[p] then
+        for _, v in pairs(ESPData[p]) do pcall(function() v:Remove() end) end
+        ESPData[p] = nil
+    end
+end)
+
+createPanel()
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    updateSpeed()
+end)
+
+-- ANA DÖNGÜ (RenderStepped)
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        updateESP()
+        updateGunESP()
+        updateAimbot()
+        updateSpeed()
+    end)
+end)
+
+-- SİLAH KAPMA DÖNGÜSÜ (Ayrı thread)
+task.spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            if cfg.gun_grab then
+                grabGunAndReturn()
+            end
+        end)
+    end
+end)
+
+print("🔪 MM2 ULTIMATE YÜKLENDİ!")
+print("✅ Silah Kapma özelliği Şerif sayfasında. AÇIK konuma getir.")
