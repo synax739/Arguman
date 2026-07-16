@@ -1,4 +1,4 @@
--- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack + OTOMATİK SİLAH KAPMA (ÇALIŞIYOR)
+-- MM2 - ESP + Gun ESP + Şerif Aim + Speed Hack + OTOMATİK SİLAH KAPMA (DÜZELTİLDİ)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -17,13 +17,13 @@ local cfg = {
     speed_on = false,
     speed_value = 30,
     team_check = false,
-    gun_grab = false,  -- YENİ: Silah kapma özelliği
+    gun_grab = false,
 }
 
 local gunESPObjects = {}
 local ESPData = {}
 local grabCooldown = 0
-local lastGrabPos = nil  -- Son alınan silahın pozisyonu (tekrar almamak için)
+local lastGrabPos = nil
 
 local ROLE_COLORS = {
     Murderer = Color3.fromRGB(255, 0, 0),
@@ -32,25 +32,37 @@ local ROLE_COLORS = {
     Unknown  = Color3.fromRGB(255, 255, 0)
 }
 
--- ==============================================
--- ROL TESPİTİ
--- ==============================================
+-- ===== ROL TESPİTİ (GENİŞLETİLDİ) =====
 local function getPlayerRole(plr)
     local char = plr.Character
     if not char then return "Unknown" end
     local backpack = plr:FindFirstChild("Backpack") or plr
-    if backpack:FindFirstChild("Knife") or backpack:FindFirstChild("Murderer") or backpack:FindFirstChild("Killer") then
-        return "Murderer"
+    
+    -- Backpack'te silah/knife kontrolü
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = item.Name
+                if name == "Knife" or name == "Murderer" or name == "Killer" then return "Murderer" end
+                if name == "Gun" or name == "Sheriff" or name == "Revolver" or name == "Pistol" or name == "SheriffGun" then return "Sheriff" end
+            end
+        end
     end
-    if char:FindFirstChild("Knife") or char:FindFirstChild("MurdererWeapon") then
-        return "Murderer"
+    
+    -- Karakterde silah/knife kontrolü
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = item.Name
+                if name == "Knife" or name == "MurdererWeapon" then return "Murderer" end
+                if name == "Gun" or name == "SheriffWeapon" or name == "Revolver" or name == "Pistol" then return "Sheriff" end
+            end
+        end
+        if char:FindFirstChild("Murderer") or char:FindFirstChild("Killer") then return "Murderer" end
+        if char:FindFirstChild("Sheriff") or char:FindFirstChild("Hero") then return "Sheriff" end
     end
-    if backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Sheriff") or backpack:FindFirstChild("Revolver") or backpack:FindFirstChild("Pistol") then
-        return "Sheriff"
-    end
-    if char:FindFirstChild("Gun") or char:FindFirstChild("SheriffWeapon") then
-        return "Sheriff"
-    end
+    
+    -- Role StringValue
     local roleObj = plr:FindFirstChild("Role") or plr:FindFirstChild("PlayerRole")
     if roleObj and roleObj:IsA("StringValue") then
         local roleName = roleObj.Value
@@ -58,12 +70,11 @@ local function getPlayerRole(plr)
         if roleName == "Sheriff" or roleName == "Hero" then return "Sheriff" end
         if roleName == "Innocent" or roleName == "Civilian" then return "Innocent" end
     end
+    
     return "Innocent"
 end
 
--- ==============================================
--- DRAWING YARDIMCILARI
--- ==============================================
+-- ===== YARDIMCILAR =====
 local function newDrawing(t)
     local ok, d = pcall(function() return Drawing.new(t) end)
     return ok and d or nil
@@ -74,9 +85,34 @@ local function isInFront(pos)
     return Camera.CFrame.LookVector:Dot((pos - camPos).Unit) > 0
 end
 
--- ==============================================
--- OYUNCU ESP
--- ==============================================
+local function hasGun()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    -- Karakterdeki tool'ları kontrol et
+    for _, v in ipairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            local name = v.Name
+            if name == "Gun" or name == "Sheriff" or name == "Revolver" or name == "Pistol" or name == "SheriffGun" then
+                return true
+            end
+        end
+    end
+    -- Backpack'i kontrol et
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, v in ipairs(bp:GetChildren()) do
+            if v:IsA("Tool") then
+                local name = v.Name
+                if name == "Gun" or name == "Sheriff" or name == "Revolver" or name == "Pistol" or name == "SheriffGun" then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- ===== OYUNCU ESP =====
 local function createESP(plr)
     local d = {}
     d.box = newDrawing("Square")
@@ -177,9 +213,7 @@ local function updateESP()
     end
 end
 
--- ==============================================
--- GUN ESP
--- ==============================================
+-- ===== GUN ESP =====
 local function updateGunESP()
     if not cfg.gun_esp then
         for _, obj in pairs(gunESPObjects) do
@@ -249,18 +283,7 @@ local function updateGunESP()
     end
 end
 
--- ==============================================
--- ŞERİF AIMBOT
--- ==============================================
-local function hasGun()
-    local myChar = LocalPlayer.Character
-    if not myChar then return false end
-    for _, v in ipairs(myChar:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    if bp then for _, v in ipairs(bp:GetChildren()) do if v:IsA("Tool") and v.Name == "Gun" then return true end end end
-    return false
-end
-
+-- ===== AIMBOT =====
 local function getClosestMurderer()
     local best, bestDist = nil, cfg.aim_maxDist
     local myChar = LocalPlayer.Character
@@ -304,9 +327,7 @@ local function updateAimbot()
     if target then aimAt(target) end
 end
 
--- ==============================================
--- SPEED HACK
--- ==============================================
+-- ===== SPEED =====
 local function updateSpeed()
     local char = LocalPlayer.Character
     if not char then return end
@@ -321,11 +342,8 @@ local function updateSpeed()
     end
 end
 
--- ==============================================
--- OTOMATİK SİLAH KAPMA (TEST SCRIPTİNDEN ALINDI)
--- ==============================================
+-- ===== SİLAH KAPMA (DÜZELTİLDİ) =====
 local function grabGunAndReturn()
-    -- Sadece şerif rolünde ve silah yoksa çalışsın
     if getPlayerRole(LocalPlayer) ~= "Sheriff" then return end
     if hasGun() then return end
     if grabCooldown > tick() then return end
@@ -335,16 +353,12 @@ local function grabGunAndReturn()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- En yakın GunDrop'u bul
     local closest, closestDist = nil, math.huge
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name == "GunDrop" then
             local pos = obj.Position
             if pos ~= pos then continue end
-            -- Aynı silahı tekrar alma (son alınanla aynıysa)
-            if lastGrabPos and (pos - lastGrabPos).Magnitude < 2 then
-                continue
-            end
+            if lastGrabPos and (pos - lastGrabPos).Magnitude < 2 then continue end
             local dist = (hrp.Position - pos).Magnitude
             if dist < closestDist then
                 closestDist = dist
@@ -354,51 +368,32 @@ local function grabGunAndReturn()
     end
 
     if not closest then return end
-    if closestDist > 50 then return end  -- 50 metre içinde değilse alma
+    if closestDist > 50 then return end
 
-    -- Mevcut konumu kaydet
     local originalCF = hrp.CFrame
-
-    -- Silahın üzerine ışınlan (biraz yukarıda)
     hrp.CFrame = CFrame.new(closest.Position + Vector3.new(0, 2, 0))
-    wait(0.3)  -- Silahın alınması için bekle
+    task.wait(0.3)
 
-    -- Silahı aldık mı kontrol et
-    local hasGunNow = false
-    for _, item in ipairs(char:GetChildren()) do
-        if item:IsA("Tool") and item.Name == "Gun" then
-            hasGunNow = true
-            break
-        end
-    end
-    if not hasGunNow then
-        local bp = LocalPlayer:FindFirstChild("Backpack")
-        if bp then
-            for _, item in ipairs(bp:GetChildren()) do
-                if item:IsA("Tool") and item.Name == "Gun" then
-                    hasGunNow = true
-                    break
-                end
-            end
-        end
+    -- Silahı aldık mı?
+    local success = hasGun()
+    -- Eğer olmadıysa, belki tool olarak eklenmiştir, tekrar dene
+    if not success then
+        task.wait(0.2)
+        success = hasGun()
     end
 
-    -- Eski konuma geri dön
     hrp.CFrame = originalCF
 
-    -- Başarılıysa cooldown ve son pozisyonu kaydet
-    if hasGunNow then
+    if success then
         lastGrabPos = closest.Position
-        grabCooldown = tick() + 3  -- 3 saniye bekle
+        grabCooldown = tick() + 3
         print("✅ Silah alındı ve geri dönüldü!")
     else
         print("❌ Silah alınamadı, tekrar deneniyor...")
     end
 end
 
--- ==============================================
--- PANEL
--- ==============================================
+-- ===== PANEL =====
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "MM2Hack"
@@ -449,7 +444,6 @@ local function createPanel()
         end
     end)
 
-    -- Başlık
     local title = Instance.new("TextLabel", panel)
     title.Size = UDim2.new(1, 0, 0, 35)
     title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
@@ -460,14 +454,13 @@ local function createPanel()
     title.BorderSizePixel = 0
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    -- Sol Menü
+    -- Menü
     local menuFrame = Instance.new("Frame", panel)
     menuFrame.Size = UDim2.new(0, 80, 1, -35)
     menuFrame.Position = UDim2.new(0, 0, 0, 35)
     menuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 42)
     menuFrame.BorderSizePixel = 0
 
-    -- Sağ İçerik
     local contentFrame = Instance.new("Frame", panel)
     contentFrame.Size = UDim2.new(1, -80, 1, -35)
     contentFrame.Position = UDim2.new(0, 80, 0, 35)
@@ -539,5 +532,15 @@ local function createPanel()
         end
     end
 
-    -- ESP Sayfası
-    local espPag
+    -- Sayfalar
+    local espPage = createPage()
+    addToggle(espPage, "ESP", cfg.esp_on, function(v) cfg.esp_on = v end, 5)
+    addToggle(espPage, "Kutu", cfg.esp_box, function(v) cfg.esp_box = v end, 43)
+    addToggle(espPage, "Mesafe", cfg.esp_dist, function(v) cfg.esp_dist = v end, 81)
+    addToggle(espPage, "Gun ESP", cfg.gun_esp, function(v) cfg.gun_esp = v end, 119)
+    addToggle(espPage, "Takım Kontrolü", cfg.team_check, function(v) cfg.team_check = v end, 157)
+    espPage.Visible = true
+    activePage = espPage
+
+    local sheriffPage = createPage()
+    addToggle(sheriffPage, "Şerif Aim", 
