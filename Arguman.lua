@@ -1,4 +1,4 @@
--- JJS AIMBOT (SON DÜZELTME - KARAKTER KONTROLÜ BOZULMAYAN)
+-- JJS AIMBOT (DÜZELTİLMİŞ - DOĞRU YÖN)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -7,8 +7,6 @@ local LocalPlayer = Players.LocalPlayer
 local aimbotEnabled = false
 local lockTarget = nil
 local lockCircle = nil
-local lastTargetPos = nil
-local targetLocked = false
 
 local function getCharacter(plr)
     return plr and plr.Character or nil
@@ -62,24 +60,27 @@ local function lockOntoTarget(targetPlayer)
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
     
-    -- Sadece Y ekseninde döndür (açı birikmesini önle)
+    -- Sadece Y ekseninde döndür
     local dx = targetPos.X - myPos.X
     local dz = targetPos.Z - myPos.Z
-    local angle = math.atan2(dx, dz)  -- Radyan cinsinden açı
+    local angle = math.atan2(dx, dz)
     
-    -- HumanoidRootPart'ı sadece Y ekseninde döndür
-    myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
+    -- 🔥 DÜZELTME: 180 derece ekle (karakteri hedefe doğru çevir)
+    local correctAngle = angle + math.pi
     
-    -- Torso/UpperTorso'yu da aynı açıyla döndür
+    -- HumanoidRootPart'ı döndür
+    myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, correctAngle, 0)
+    
+    -- Torso/UpperTorso'yu da döndür
     local torso = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
     if torso then
-        torso.CFrame = CFrame.new(torso.Position) * CFrame.Angles(0, angle, 0)
+        torso.CFrame = CFrame.new(torso.Position) * CFrame.Angles(0, correctAngle, 0)
     end
     
     -- Humanoid ayarları
     local hum = myChar:FindFirstChildOfClass("Humanoid")
     if hum then
-        hum.AutoRotate = false  -- Otomatik dönüşü kapat (elle kontrol et)
+        hum.AutoRotate = false
     end
     
     -- Kamerayı hedefe çevir (baş hizası)
@@ -169,7 +170,6 @@ local function createToggleButton()
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
-            -- AutoRotate'u geri aç
             local myChar = LocalPlayer.Character
             if myChar then
                 local hum = myChar:FindFirstChildOfClass("Humanoid")
@@ -206,5 +206,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (DÜZELTİLMİŞ - AÇI BİRİKMESİ YOK) YÜKLENDI!")
-print("🎯 Sol üstteki siyah butonla aç/kapat. Karakter hedefe dönecek ve kontrol edilebilecek.")
+print("✅ JJS AIMBOT (DOĞRU YÖN - DÜZELTİLDİ) YÜKLENDI!")
+print("🎯 Sol üstteki siyah butonla aç/kapat. Artık karakter hedefe doğru dönecek.")
