@@ -1,4 +1,4 @@
--- JJS AIMBOT + LOCK İŞARETİ (KARAKTER DÖNÜŞÜ DÜZELTİLDİ + BUTON SOLA ÇEKİLDİ)
+-- JJS AIMBOT + LOCK İŞARETİ (KARAKTER DÖNÜŞÜ DÜZELTİLDİ + BUTON SOLDA)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -58,19 +58,16 @@ local function lockOntoTarget(targetPlayer)
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
 
-    -- KARAKTERİ HEDEFE DÖNDÜR (DÜZELTİLDİ)
+    -- KARAKTERİ HEDEFE DÖNDÜR (GELİŞTİRİLMİŞ)
     local myChar = LocalPlayer.Character
     if myChar then
         local myHrp = myChar:FindFirstChild("HumanoidRootPart")
         local hum = myChar:FindFirstChildOfClass("Humanoid")
-        if myHrp then
+        if myHrp and hum then
             local flatTarget = Vector3.new(targetPos.X, myHrp.Position.Y, targetPos.Z)
-            if flatTarget == flatTarget then
-                myHrp.CFrame = CFrame.lookAt(myHrp.Position, flatTarget)
-                if hum then
-                    hum.AutoRotate = true
-                end
-            end
+            if flatTarget ~= flatTarget then return end
+            hum.AutoRotate = true
+            myHrp.CFrame = CFrame.lookAt(myHrp.Position, flatTarget)
         end
     end
 end
@@ -126,7 +123,7 @@ local function createToggleButton()
 
     local btn = Instance.new("ImageButton", gui)
     btn.Size = UDim2.new(0, 60, 0, 60)
-    btn.Position = UDim2.new(0, 10, 0.15, 0) -- SOLA ÇEKİLDİ
+    btn.Position = UDim2.new(0, 10, 0.15, 0)
     btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     btn.BackgroundTransparency = 0.2
     btn.BorderSizePixel = 0
@@ -183,5 +180,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (KARAKTER DÖNÜŞÜ DÜZELTİLDİ + BUTON SOLDA) YÜKLENDİ!")
+print("✅ JJS AIMBOT (KARAKTER DÖNÜŞÜ DÜZELTİLDİ) YÜKLENDİ!")
 print("🎯 Sol üstteki siyah butonla aç/kapat. Hedef kilitlenir ve bırakmaz.")
