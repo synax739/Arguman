@@ -1,4 +1,4 @@
--- JJS AIMBOT (SON - KOŞMA SORUNU ÇÖZÜLDÜ + SÜREKLİ TAKİP)
+-- JJS AIMBOT (GERÇEK KAMERA KİLİT - KARAKTER HAREKET ETMEZ)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -52,24 +52,13 @@ local function lockOntoTarget(targetPlayer)
     local targetHrp = getHumanoidRootPart(targetPlayer)
     if not targetHrp then return end
     
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return end
+    local targetPos = targetHrp.Position + Vector3.new(0, 1.5, 0)
+    local camPos = Camera.CFrame.Position
     
-    local targetPos = targetHrp.Position
-    local myPos = myHrp.Position
-    
-    -- Sadece Y ekseninde döndür (CFrame.lookAt kullanma)
-    local dx = targetPos.X - myPos.X
-    local dz = targetPos.Z - myPos.Z
-    local angle = math.atan2(dx, dz)
-    
-    -- Sadece HumanoidRootPart'ı döndür (Torso'ya dokunma)
-    myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
-    
-    -- Kamerayı hedefe çevir (sadece kamera)
-    Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos + Vector3.new(0, 2, 0))
+    -- SADECE KAMERAYI DÖNDÜR (KARAKTERE DOKUNMA)
+    if camPos == camPos and targetPos == targetPos then
+        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+    end
 end
 
 local function createLockCircle()
@@ -182,5 +171,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (SON - KOŞMA SORUNU ÇÖZÜLDÜ) YUKLENDI!")
-print("🎯 Sol ustteki siyah butonla ac/kapat. Artik karakter hedefi surekli takip eder.")
+print("✅ JJS AIMBOT (SADECE KAMERA KİLİT) YUKLENDI!")
+print("🎯 Sol ustteki siyah butonla ac/kapat. Karakter hareket etmez, sadece kamera kilitlenir.")
