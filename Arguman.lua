@@ -1,4 +1,4 @@
--- JJS AIMBOT (GERÇEK KAMERA KİLİT - KARAKTER HAREKET ETMEZ)
+-- JJS KAMERA KİLİT (SADECE KAMERA - KARAKTER SERBEST)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -52,10 +52,10 @@ local function lockOntoTarget(targetPlayer)
     local targetHrp = getHumanoidRootPart(targetPlayer)
     if not targetHrp then return end
     
-    local targetPos = targetHrp.Position + Vector3.new(0, 1.5, 0)
+    local targetPos = targetHrp.Position + Vector3.new(0, 2, 0)
     local camPos = Camera.CFrame.Position
     
-    -- SADECE KAMERAYI DÖNDÜR (KARAKTERE DOKUNMA)
+    -- SADECE KAMERAYI KİTLE
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
@@ -171,5 +171,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (SADECE KAMERA KİLİT) YUKLENDI!")
-print("🎯 Sol ustteki siyah butonla ac/kapat. Karakter hareket etmez, sadece kamera kilitlenir.")
+print("✅ JJS KAMERA KİLİT YUKLENDI!")
+print("🎯 Sol ustteki siyah butonla ac/kapat. Kamera hedefe kilitlenir, karakter serbest.")
