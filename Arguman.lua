@@ -1,4 +1,4 @@
--- JJS KAMERA KİLİT (SADECE KAMERA - KARAKTER SERBEST)
+-- JJS KAMERA KİLİT (KARAKTER GÖZ HİZASI + SÜREKLİ TAKİP)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -52,10 +52,16 @@ local function lockOntoTarget(targetPlayer)
     local targetHrp = getHumanoidRootPart(targetPlayer)
     if not targetHrp then return end
     
-    local targetPos = targetHrp.Position + Vector3.new(0, 2, 0)
-    local camPos = Camera.CFrame.Position
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
     
-    -- SADECE KAMERAYI KİTLE
+    local targetPos = targetHrp.Position + Vector3.new(0, 2, 0)
+    
+    -- Karakterin başını bul (göz hizası)
+    local head = myChar:FindFirstChild("Head")
+    local camPos = head and head.Position + Vector3.new(0, 0.5, 0) or Camera.CFrame.Position
+    
+    -- Kamerayı karakterin göz hizasından hedefe çevir
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
@@ -171,5 +177,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT YUKLENDI!")
-print("🎯 Sol ustteki siyah butonla ac/kapat. Kamera hedefe kilitlenir, karakter serbest.")
+print("✅ JJS KAMERA KİLİT (KARAKTER GÖZ HİZASI) YUKLENDI!")
+print("🎯 Sol ustteki siyah butonla ac/kapat. Kamera hedefe kilitlenir ve takip eder.")
