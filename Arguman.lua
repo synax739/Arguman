@@ -1,4 +1,4 @@
--- JJS KAMERA KİLİT (SON - KARAKTER ARKASI)
+-- JJS KAMERA KİLİT (SON HAL - YÜKSEKLİK AYARLANDI)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -60,14 +60,13 @@ local function lockOntoTarget(targetPlayer)
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
     
-    -- Karakterin arkasını hesapla (karakterden hedefe doğru vektör)
+    -- Karakterin arkasını hesapla
     local dir = (targetPos - myPos).Unit
-    local camDistance = 10 -- Kamera uzaklığı
+    local camDistance = 8
     
-    -- Karakterin arkasına kamera koy (hedefe doğru değil, karakterin arkasına)
-    local camPos = myPos - dir * camDistance + Vector3.new(0, 3, 0) -- 3 birim yukarı
+    -- Kamera pozisyonu (karakterin arkası + yükseklik)
+    local camPos = myPos - dir * camDistance + Vector3.new(0, 2.5, 0)
     
-    -- Kamera hedefe baksın
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
@@ -183,5 +182,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (KARAKTER ARKASI) YUKLENDI!")
-print("🎯 Sol ustteki siyah butonla ac/kapat. Kamera karakterin arkasından hedefe bakar.")
+print("✅ JJS KAMERA KİLİT (SON HAL - YUKSEKLIK AYARLANDI) YUKLENDI!")
+print("🎯 Sol ustteki siyah butonla ac/kapat.")
