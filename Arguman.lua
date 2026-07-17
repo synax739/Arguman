@@ -1,14 +1,11 @@
--- JJS AIMBOT (SON HAL - SORUNSUZ ÇALIŞAN)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
 
 local aimbotEnabled = false
 local lockTarget = nil
 local lockCircle = nil
-local isMoving = false
 
 local function getCharacter(plr)
     return plr and plr.Character or nil
@@ -47,7 +44,6 @@ local function findClosestPlayer()
     return closest
 end
 
--- KARAKTERİ SADECE KAMERA AÇISINA GÖRE DÖNDÜR (HAREKET BOZULMAZ)
 local function lockOntoTarget(targetPlayer)
     if not targetPlayer then return end
     local targetChar = getCharacter(targetPlayer)
@@ -63,25 +59,20 @@ local function lockOntoTarget(targetPlayer)
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
     
-    -- Sadece Y ekseninde döndür
     local dx = targetPos.X - myPos.X
     local dz = targetPos.Z - myPos.Z
     local angle = math.atan2(dx, dz)
     
-    -- HumanoidRootPart'ı döndür
     myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
     
-    -- Torso/UpperTorso'yu da döndür
     local torso = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
     if torso then
         torso.CFrame = CFrame.new(torso.Position) * CFrame.Angles(0, angle, 0)
     end
     
-    -- Kamerayı hedefe çevir (baş hizası)
     Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos + Vector3.new(0, 2, 0))
 end
 
--- Mavi lock işareti
 local function createLockCircle()
     if lockCircle then
         pcall(function() lockCircle:Remove() end)
@@ -126,7 +117,6 @@ local function updateLockCircle()
     end
 end
 
--- Aç/Kapa Butonu
 local function createToggleButton()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AimbotToggle"
@@ -172,7 +162,6 @@ local function createToggleButton()
     return btn
 end
 
--- ANA DÖNGÜ
 local function mainLoop()
     if aimbotEnabled then
         if not lockTarget or not isAlive(lockTarget) then
@@ -187,7 +176,6 @@ local function mainLoop()
     updateLockCircle()
 end
 
--- BAŞLAT
 createLockCircle()
 createToggleButton()
 
@@ -195,5 +183,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (SADE KAMERA KİLİT) YÜKLENDI!")
-print("🎯 Sol üstteki siyah butonla aç/kapat.")
+print("✅ JJS AIMBOT YUKLENDI! Sol ustteki 🎯 butonuna tikla.")
