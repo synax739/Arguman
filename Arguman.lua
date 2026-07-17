@@ -1,4 +1,4 @@
--- JJS KAMERA KİLİT (İKİNCİ FOTOĞRAFTAKİ GİBİ - YÜKSEKLİK AYARLANDI)
+-- JJS KAMERA KİLİT (SON - YÜKSEKLİK ARTIRILDI)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -62,10 +62,10 @@ local function lockOntoTarget(targetPlayer)
     
     -- Karakterin arkasını hesapla
     local dir = (targetPos - myPos).Unit
-    local camDistance = 10
+    local camDistance = 12 -- Biraz daha uzak
     
-    -- Kamera pozisyonu: ikinci fotograftaki gibi daha yukarıdan
-    local camPos = myPos - dir * camDistance + Vector3.new(0, 4, 0)
+    -- Kamera pozisyonu (daha yüksek)
+    local camPos = myPos - dir * camDistance + Vector3.new(0, 8, 0) -- Yükseklik 8 yapıldı
     
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
@@ -182,5 +182,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (İKİNCİ FOTOĞRAFTAKİ GİBİ) YUKLENDI!")
+print("✅ JJS KAMERA KİLİT (YUKSEK) YUKLENDI!")
 print("🎯 Sol ustteki siyah butonla ac/kapat.")
