@@ -1,3 +1,4 @@
+-- JJS AIMBOT (SON - KOŞMA SORUNU ÇÖZÜLDÜ + SÜREKLİ TAKİP)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -59,17 +60,15 @@ local function lockOntoTarget(targetPlayer)
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
     
+    -- Sadece Y ekseninde döndür (CFrame.lookAt kullanma)
     local dx = targetPos.X - myPos.X
     local dz = targetPos.Z - myPos.Z
     local angle = math.atan2(dx, dz)
     
+    -- Sadece HumanoidRootPart'ı döndür (Torso'ya dokunma)
     myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
     
-    local torso = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
-    if torso then
-        torso.CFrame = CFrame.new(torso.Position) * CFrame.Angles(0, angle, 0)
-    end
-    
+    -- Kamerayı hedefe çevir (sadece kamera)
     Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos + Vector3.new(0, 2, 0))
 end
 
@@ -183,4 +182,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT YUKLENDI! Sol ustteki 🎯 butonuna tikla.")
+print("✅ JJS AIMBOT (SON - KOŞMA SORUNU ÇÖZÜLDÜ) YUKLENDI!")
+print("🎯 Sol ustteki siyah butonla ac/kapat. Artik karakter hedefi surekli takip eder.")
