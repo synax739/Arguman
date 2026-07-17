@@ -1,9 +1,7 @@
--- JJS AIMBOT + LOCK İŞARETİ (KARAKTER KESİN DÖNÜŞÜMLÜ)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
 
 local aimbotEnabled = false
 local lockTarget = nil
@@ -59,7 +57,6 @@ local function lockOntoTarget(targetPlayer)
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
 
-    -- KARAKTERİ KESİN DÖNDÜRME (TÜM PARÇALAR)
     local myChar = LocalPlayer.Character
     if myChar then
         local hum = myChar:FindFirstChildOfClass("Humanoid")
@@ -67,7 +64,6 @@ local function lockOntoTarget(targetPlayer)
             hum.AutoRotate = true
         end
 
-        -- HumanoidRootPart
         local myHrp = myChar:FindFirstChild("HumanoidRootPart")
         if myHrp then
             local flatTarget = Vector3.new(targetPos.X, myHrp.Position.Y, targetPos.Z)
@@ -76,21 +72,11 @@ local function lockOntoTarget(targetPlayer)
             end
         end
 
-        -- UpperTorso (R15) veya Torso (R6)
         local torso = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
         if torso then
             local flatTarget = Vector3.new(targetPos.X, torso.Position.Y, targetPos.Z)
             if flatTarget == flatTarget then
                 torso.CFrame = CFrame.lookAt(torso.Position, flatTarget)
-            end
-        end
-
-        -- Head (opsiyonel, daha iyi görünüm için)
-        local head = myChar:FindFirstChild("Head")
-        if head then
-            local flatTarget = Vector3.new(targetPos.X, head.Position.Y, targetPos.Z)
-            if flatTarget == flatTarget then
-                head.CFrame = CFrame.lookAt(head.Position, flatTarget)
             end
         end
     end
@@ -204,5 +190,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (KARAKTER KESİN DÖNÜŞÜMLÜ) YÜKLENDİ!")
-print("🎯 Sol üstteki siyah butonla aç/kapat. Karakter artık hedefe dönecek.")
+print("✅ JJS AIMBOT YUKLENDI! Sol ustteki 🎯 butonuna tikla.")
