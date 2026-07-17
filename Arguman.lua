@@ -1,4 +1,4 @@
--- JJS AIMBOT + LOCK İŞARETİ (KARAKTER DÖNÜŞÜ DÜZELTİLDİ + BUTON SOLDA)
+-- JJS AIMBOT + LOCK İŞARETİ (KARAKTER DÖNÜŞÜ KESİN ÇÖZÜM)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -58,16 +58,30 @@ local function lockOntoTarget(targetPlayer)
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
 
-    -- KARAKTERİ HEDEFE DÖNDÜR (GELİŞTİRİLMİŞ)
+    -- KARAKTERİ HEDEFE DÖNDÜR (KESİN ÇÖZÜM)
     local myChar = LocalPlayer.Character
     if myChar then
+        -- HumanoidRootPart'i döndür
         local myHrp = myChar:FindFirstChild("HumanoidRootPart")
         local hum = myChar:FindFirstChildOfClass("Humanoid")
+        
         if myHrp and hum then
-            local flatTarget = Vector3.new(targetPos.X, myHrp.Position.Y, targetPos.Z)
-            if flatTarget ~= flatTarget then return end
+            -- AutoRotate'i zorla aç
             hum.AutoRotate = true
-            myHrp.CFrame = CFrame.lookAt(myHrp.Position, flatTarget)
+            -- Hedefe doğru döndür (sadece Y ekseninde)
+            local flatTarget = Vector3.new(targetPos.X, myHrp.Position.Y, targetPos.Z)
+            if flatTarget == flatTarget then
+                myHrp.CFrame = CFrame.lookAt(myHrp.Position, flatTarget)
+            end
+        end
+        
+        -- Alternatif: UpperTorso veya Torso'yu döndür (R6/R15 uyumluluk)
+        local torso = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
+        if torso then
+            local flatTarget = Vector3.new(targetPos.X, torso.Position.Y, targetPos.Z)
+            if flatTarget == flatTarget then
+                torso.CFrame = CFrame.lookAt(torso.Position, flatTarget)
+            end
         end
     end
 end
@@ -180,5 +194,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (KARAKTER DÖNÜŞÜ DÜZELTİLDİ) YÜKLENDİ!")
-print("🎯 Sol üstteki siyah butonla aç/kapat. Hedef kilitlenir ve bırakmaz.")
+print("✅ JJS AIMBOT (KARAKTER DÖNÜŞÜ KESİN ÇÖZÜM) YÜKLENDİ!")
+print("🎯 Sol üstteki siyah butonla aç/kapat. Karakter artık hedefe dönecek.")
