@@ -1,4 +1,4 @@
--- JJS KAMERA KİLİT (SON - YÜKSEKLİK ARTIRILDI)
+-- JJS KAMERA KİLİT (SON - YENİ BUTON TASARIMI)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -60,12 +60,9 @@ local function lockOntoTarget(targetPlayer)
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
     
-    -- Karakterin arkasını hesapla
     local dir = (targetPos - myPos).Unit
-    local camDistance = 12 -- Biraz daha uzak
-    
-    -- Kamera pozisyonu (daha yüksek)
-    local camPos = myPos - dir * camDistance + Vector3.new(0, 8, 0) -- Yükseklik 8 yapıldı
+    local camDistance = 12
+    local camPos = myPos - dir * camDistance + Vector3.new(0, 8, 0)
     
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
@@ -116,33 +113,84 @@ local function updateLockCircle()
     end
 end
 
+-- ===== YENİ BUTON TASARIMI (Fotoğraftaki gibi) =====
 local function createToggleButton()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AimbotToggle"
     gui.ResetOnSpawn = false
 
+    -- Ana buton çerçevesi (daire)
     local btn = Instance.new("ImageButton", gui)
-    btn.Size = UDim2.new(0, 60, 0, 60)
-    btn.Position = UDim2.new(0, 10, 0.25, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    btn.BackgroundTransparency = 0.2
-    btn.BorderSizePixel = 0
+    btn.Size = UDim2.new(0, 70, 0, 70)
+    btn.Position = UDim2.new(0, 15, 0.15, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BackgroundTransparency = 0.15
+    btn.BorderSizePixel = 2
+    btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 
-    local icon = Instance.new("TextLabel", btn)
-    icon.Size = UDim2.new(1, 0, 1, 0)
-    icon.BackgroundTransparency = 1
-    icon.Text = "🎯"
-    icon.TextColor3 = Color3.new(1, 1, 1)
-    icon.TextSize = 28
-    icon.Font = Enum.Font.SourceSansBold
-    icon.TextScaled = true
+    -- İç daire (hedef/nişangah çizimi)
+    local innerCircle = Instance.new("Frame", btn)
+    innerCircle.Size = UDim2.new(0, 50, 0, 50)
+    innerCircle.Position = UDim2.new(0.5, -25, 0.5, -25)
+    innerCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    innerCircle.BackgroundTransparency = 0
+    innerCircle.BorderSizePixel = 2
+    innerCircle.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", innerCircle).CornerRadius = UDim.new(1, 0)
 
+    -- Hedef işareti (crosshair) - Yatay çizgi
+    local hLine = Instance.new("Frame", btn)
+    hLine.Size = UDim2.new(0, 30, 0, 2)
+    hLine.Position = UDim2.new(0.5, -15, 0.5, -1)
+    hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    hLine.BackgroundTransparency = 0
+    hLine.BorderSizePixel = 0
+
+    -- Hedef işareti (crosshair) - Dikey çizgi
+    local vLine = Instance.new("Frame", btn)
+    vLine.Size = UDim2.new(0, 2, 0, 30)
+    vLine.Position = UDim2.new(0.5, -1, 0.5, -15)
+    vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    vLine.BackgroundTransparency = 0
+    vLine.BorderSizePixel = 0
+
+    -- Durum göstergesi (açık/kapalı için küçük nokta)
+    local statusDot = Instance.new("Frame", btn)
+    statusDot.Size = UDim2.new(0, 16, 0, 16)
+    statusDot.Position = UDim2.new(0.5, -8, 0.5, -8)
+    statusDot.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    statusDot.BackgroundTransparency = 0
+    statusDot.BorderSizePixel = 0
+    Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+
+    -- Durum yazısı (ON/OFF)
+    local statusText = Instance.new("TextLabel", btn)
+    statusText.Size = UDim2.new(1, 0, 0, 20)
+    statusText.Position = UDim2.new(0, 0, 1, -22)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "OFF"
+    statusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    statusText.TextSize = 12
+    statusText.Font = Enum.Font.SourceSansBold
+    statusText.TextScaled = true
+
+    -- Buton rengini güncelle
     local function updateButton()
         if aimbotEnabled then
-            btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
+            btn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+            btn.BackgroundTransparency = 0.3
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            statusText.Text = "ON"
+            statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+            btn.BorderColor3 = Color3.fromRGB(0, 255, 0)
         else
-            btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            btn.BackgroundTransparency = 0.15
+            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            statusText.Text = "OFF"
+            statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+            btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
         end
     end
 
@@ -182,5 +230,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (YUKSEK) YUKLENDI!")
-print("🎯 Sol ustteki siyah butonla ac/kapat.")
+print("✅ JJS KAMERA KİLİT (YENİ BUTON) YUKLENDI!")
+print("🎯 Sol ustteki yeni butonla ac/kapat.")
