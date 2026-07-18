@@ -1,4 +1,3 @@
--- JJS KAMERA KİLİT (SON - BUTON FOTOĞRAFA BİREBİR)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -113,22 +112,19 @@ local function updateLockCircle()
     end
 end
 
--- ===== FOTOĞRAFA BİREBİR BUTON =====
 local function createToggleButton()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AimbotToggle"
     gui.ResetOnSpawn = false
 
-    -- Ana buton (daire, kırmızı, biraz üstte)
     local btn = Instance.new("ImageButton", gui)
     btn.Size = UDim2.new(0, 80, 0, 80)
-    btn.Position = UDim2.new(0, 20, 0.42, -40) -- Biraz üste alındı
+    btn.Position = UDim2.new(0, 20, 0.42, -40)
     btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     btn.BackgroundTransparency = 0.1
     btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 
-    -- Dış halka (fotoğraftaki gibi)
     local outerRing = Instance.new("Frame", btn)
     outerRing.Size = UDim2.new(1, 0, 1, 0)
     outerRing.Position = UDim2.new(0, 0, 0, 0)
@@ -138,7 +134,6 @@ local function createToggleButton()
     outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", outerRing).CornerRadius = UDim.new(1, 0)
 
-    -- İç halka (ince çerçeve)
     local innerRing = Instance.new("Frame", btn)
     innerRing.Size = UDim2.new(0, 55, 0, 55)
     innerRing.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
@@ -148,7 +143,6 @@ local function createToggleButton()
     innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", innerRing).CornerRadius = UDim.new(1, 0)
 
-    -- Hedef işareti (crosshair) - Yatay çizgi (ince)
     local hLine = Instance.new("Frame", btn)
     hLine.Size = UDim2.new(0, 28, 0, 2)
     hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
@@ -156,7 +150,6 @@ local function createToggleButton()
     hLine.BackgroundTransparency = 0
     hLine.BorderSizePixel = 0
 
-    -- Hedef işareti - Dikey çizgi (ince)
     local vLine = Instance.new("Frame", btn)
     vLine.Size = UDim2.new(0, 2, 0, 28)
     vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
@@ -164,7 +157,6 @@ local function createToggleButton()
     vLine.BackgroundTransparency = 0
     vLine.BorderSizePixel = 0
 
-    -- Durum noktası (küçük daire)
     local statusDot = Instance.new("Frame", btn)
     statusDot.Size = UDim2.new(0, 18, 0, 18)
     statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
@@ -173,7 +165,6 @@ local function createToggleButton()
     statusDot.BorderSizePixel = 0
     Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 
-    -- ON/OFF yazısı (altta)
     local statusText = Instance.new("TextLabel", btn)
     statusText.Size = UDim2.new(1, 0, 0, 20)
     statusText.Position = UDim2.new(0, 0, 1, -15)
@@ -184,7 +175,6 @@ local function createToggleButton()
     statusText.Font = Enum.Font.SourceSansBold
     statusText.TextScaled = false
 
-    -- Duruma göre renkleri güncelle
     local function updateButton()
         if aimbotEnabled then
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
@@ -243,5 +233,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (FOTOĞRAFTAKİ GİBİ) YUKLENDI!")
-print("🎯 Sol tarafta kırmızı buton belirdi.")
+print("✅ JJS KAMERA KİLİT YUKLENDI!")
