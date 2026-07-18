@@ -1,4 +1,4 @@
--- JJS KAMERA KİLİT (SON - KIRMIZI BUTON, SOL ORTA)
+-- JJS KAMERA KİLİT (SON - BUTON FOTOĞRAFA BİREBİR)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -113,82 +113,97 @@ local function updateLockCircle()
     end
 end
 
--- ===== KIRMIZI BUTON (SOL ORTA) =====
+-- ===== FOTOĞRAFA BİREBİR BUTON =====
 local function createToggleButton()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AimbotToggle"
     gui.ResetOnSpawn = false
 
-    -- Ana buton (daire, kırmızı)
+    -- Ana buton (daire, kırmızı, biraz üstte)
     local btn = Instance.new("ImageButton", gui)
-    btn.Size = UDim2.new(0, 75, 0, 75)
-    btn.Position = UDim2.new(0, 20, 0.5, -37.5) -- Sol orta
-    btn.BackgroundColor3 = Color3.fromRGB(200, 30, 30) -- Kırmızı
-    btn.BackgroundTransparency = 0.2
-    btn.BorderSizePixel = 2
-    btn.BorderColor3 = Color3.fromRGB(200, 30, 30)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(0, 20, 0.42, -40) -- Biraz üste alındı
+    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    btn.BackgroundTransparency = 0.1
+    btn.BorderSizePixel = 0
     Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
 
-    -- İç daire (beyaz çerçeve)
-    local innerCircle = Instance.new("Frame", btn)
-    innerCircle.Size = UDim2.new(0, 55, 0, 55)
-    innerCircle.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
-    innerCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    innerCircle.BackgroundTransparency = 0.8
-    innerCircle.BorderSizePixel = 2
-    innerCircle.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", innerCircle).CornerRadius = UDim.new(1, 0)
+    -- Dış halka (fotoğraftaki gibi)
+    local outerRing = Instance.new("Frame", btn)
+    outerRing.Size = UDim2.new(1, 0, 1, 0)
+    outerRing.Position = UDim2.new(0, 0, 0, 0)
+    outerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    outerRing.BackgroundTransparency = 0.8
+    outerRing.BorderSizePixel = 3
+    outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", outerRing).CornerRadius = UDim.new(1, 0)
 
-    -- Crosshair (hedef işareti) - Yatay çizgi
+    -- İç halka (ince çerçeve)
+    local innerRing = Instance.new("Frame", btn)
+    innerRing.Size = UDim2.new(0, 55, 0, 55)
+    innerRing.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
+    innerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    innerRing.BackgroundTransparency = 0.9
+    innerRing.BorderSizePixel = 2
+    innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", innerRing).CornerRadius = UDim.new(1, 0)
+
+    -- Hedef işareti (crosshair) - Yatay çizgi (ince)
     local hLine = Instance.new("Frame", btn)
-    hLine.Size = UDim2.new(0, 30, 0, 2.5)
-    hLine.Position = UDim2.new(0.5, -15, 0.5, -1.25)
+    hLine.Size = UDim2.new(0, 28, 0, 2)
+    hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
     hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     hLine.BackgroundTransparency = 0
     hLine.BorderSizePixel = 0
 
-    -- Crosshair - Dikey çizgi
+    -- Hedef işareti - Dikey çizgi (ince)
     local vLine = Instance.new("Frame", btn)
-    vLine.Size = UDim2.new(0, 2.5, 0, 30)
-    vLine.Position = UDim2.new(0.5, -1.25, 0.5, -15)
+    vLine.Size = UDim2.new(0, 2, 0, 28)
+    vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
     vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     vLine.BackgroundTransparency = 0
     vLine.BorderSizePixel = 0
 
-    -- Durum noktası (açık: yeşil, kapalı: kırmızı)
+    -- Durum noktası (küçük daire)
     local statusDot = Instance.new("Frame", btn)
-    statusDot.Size = UDim2.new(0, 14, 0, 14)
-    statusDot.Position = UDim2.new(0.5, -7, 0.5, -7)
+    statusDot.Size = UDim2.new(0, 18, 0, 18)
+    statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
     statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     statusDot.BackgroundTransparency = 0
     statusDot.BorderSizePixel = 0
     Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 
-    -- ON/OFF yazısı
+    -- ON/OFF yazısı (altta)
     local statusText = Instance.new("TextLabel", btn)
     statusText.Size = UDim2.new(1, 0, 0, 20)
-    statusText.Position = UDim2.new(0, 0, 1, -18)
+    statusText.Position = UDim2.new(0, 0, 1, -15)
     statusText.BackgroundTransparency = 1
     statusText.Text = "OFF"
-    statusText.TextColor3 = Color3.fromRGB(255, 200, 200)
-    statusText.TextSize = 12
+    statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+    statusText.TextSize = 13
     statusText.Font = Enum.Font.SourceSansBold
-    statusText.TextScaled = true
+    statusText.TextScaled = false
 
-    -- Buton rengini güncelle
+    -- Duruma göre renkleri güncelle
     local function updateButton()
         if aimbotEnabled then
-            btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80) -- Yeşil
-            btn.BorderColor3 = Color3.fromRGB(0, 180, 80)
-            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Yeşil nokta
+            btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+            outerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            innerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
             statusText.Text = "ON"
             statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+            hLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            vLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
         else
-            btn.BackgroundColor3 = Color3.fromRGB(200, 30, 30) -- Kırmızı
-            btn.BorderColor3 = Color3.fromRGB(200, 30, 30)
-            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Kırmızı nokta
+            btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
             statusText.Text = "OFF"
-            statusText.TextColor3 = Color3.fromRGB(255, 200, 200)
+            statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+            hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         end
     end
 
@@ -228,5 +243,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (KIRMIZI BUTON) YUKLENDI!")
-print("🎯 Sol orta kısımda kırmızı buton belirdi.")
+print("✅ JJS KAMERA KİLİT (FOTOĞRAFTAKİ GİBİ) YUKLENDI!")
+print("🎯 Sol tarafta kırmızı buton belirdi.")
