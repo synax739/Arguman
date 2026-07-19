@@ -60,27 +60,18 @@ local function lockOntoTarget(targetPlayer)
     local myPos = myHrp.Position
     local dist = (targetPos - myPos).Magnitude
     
-    -- Kamera mesafesi ve yüksekliği (daha yukarı ve geri)
+    -- Sabit yükseklik ve mesafe (her mesafede aynı)
     local camDistance = 14
-    local heightOffset = 10
+    local heightOffset = 12
     
-    if dist < 15 then
-        camDistance = 9
-        heightOffset = 7
-    elseif dist < 30 then
-        camDistance = 12
-        heightOffset = 9
-    end
-    
+    -- Hedefe doğru vektör
     local dir = (targetPos - myPos).Unit
     
-    -- Kamera pozisyonu: karakterin arkası + yukarı + hafif sağa (düz bakış için)
-    -- Sağa kaymayı düzeltmek için cross product ile hafif sola çekelim
-    local right = Vector3.new(0, 1, 0):Cross(dir).Unit
-    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0) - right * 0.5
+    -- Sağa kaymayı düzeltmek için: hedefin tam ortasına bak
+    local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
     
-    -- Hedef noktası: hedefin tam ortası (gövde hizası)
-    local lookTarget = targetPos + Vector3.new(0, 2, 0)
+    -- Kamera pozisyonu: karakterin arkası + yukarı
+    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
     
     if camPos == camPos and lookTarget == lookTarget then
         Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
@@ -251,4 +242,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("JJS AIMBOT YUKLENDI! (KAMERA YUKARI VE GERI)")
+print("JJS AIMBOT YUKLENDI! (SABIT YUKSEKLIK VE MESAFE, DUZ BAKIS)")
