@@ -1,4 +1,3 @@
--- JJS KAMERA KİLİT (HIZLI TAKİP - DASH VE HAREKETLERE KARŞI)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -59,13 +58,11 @@ local function lockOntoTarget(targetPlayer)
     
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
-    
-    -- Hedef çok yakınsa daha hızlı takip et
     local dist = (targetPos - myPos).Magnitude
+    
     local camDistance = 12
     local heightOffset = 8
     
-    -- Mesafeye göre kamera uzaklığını ayarla (yakınlaşınca daha yakın)
     if dist < 15 then
         camDistance = 7
         heightOffset = 5
@@ -77,7 +74,6 @@ local function lockOntoTarget(targetPlayer)
     local dir = (targetPos - myPos).Unit
     local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
     
-    -- Hızlı hareket eden hedefler için daha hızlı güncelle
     if camPos == camPos and targetPos == targetPos then
         Camera.CFrame = CFrame.lookAt(camPos, targetPos)
     end
@@ -188,7 +184,6 @@ local function createToggleButton()
     statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
     statusText.TextSize = 13
     statusText.Font = Enum.Font.SourceSansBold
-    statusText.TextScaled = false
 
     local function updateButton()
         if aimbotEnabled then
@@ -248,6 +243,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS KAMERA KİLİT (HIZLI TAKİP) YUKLENDI!")
-print("🎯 Dash ve hızlı hareketlere karşı optimize edildi.")
-```
+print("JJS AIMBOT YUKLENDI!")
