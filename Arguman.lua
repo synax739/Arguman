@@ -1,245 +1,196 @@
+-- DELTA EXECUTOR - MAKSİMUM FPS BOOST (TÜM EFEKTLER KAPALI)
 local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
+local Debris = game:GetService("Debris")
 
-local aimbotEnabled = false
-local lockTarget = nil
-local lockCircle = nil
+print("⚡ MAKSİMUM FPS BOOST BAŞLATILIYOR...")
 
-local function getCharacter(plr)
-    return plr and plr.Character or nil
-end
+-- ===== 1. IŞIKLANDIRMA (TAMAMEN KAPALI) =====
+Lighting.Brightness = 0
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 10
+Lighting.FogStart = 0
+Lighting.ClockTime = 12
+Lighting.Ambient = Color3.fromRGB(50, 50, 50)
+Lighting.ColorShift_Top = Color3.new(0,0,0)
+Lighting.ColorShift_Bottom = Color3.new(0,0,0)
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.OutdoorAmbient = Color3.fromRGB(50, 50, 50)
+Lighting.ShadowSoftness = 0
+Lighting.Technology = Enum.Technology.Compatibility
 
-local function getHumanoidRootPart(plr)
-    local char = getCharacter(plr)
-    return char and char:FindFirstChild("HumanoidRootPart") or nil
-end
-
-local function isAlive(plr)
-    local char = getCharacter(plr)
-    if not char then return false end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    return hum and hum.Health > 0 or false
-end
-
-local function findClosestPlayer()
-    local myChar = LocalPlayer.Character
-    if not myChar then return nil end
-    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return nil end
-
-    local closest, closestDist = nil, math.huge
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if not isAlive(plr) then continue end
-        local hrp = getHumanoidRootPart(plr)
-        if not hrp then continue end
-        local dist = (myHrp.Position - hrp.Position).Magnitude
-        if dist < closestDist then
-            closestDist = dist
-            closest = plr
+-- ===== 2. TÜM EFEKTLERİ KAPAT =====
+local function killAllEffects()
+    for _, v in pairs(Workspace:GetDescendants()) do
+        -- Partiküller
+        if v:IsA("ParticleEmitter") then
+            v.Enabled = false
+            v.Rate = 0
+            v:Destroy()
         end
-    end
-    return closest
-end
-
-local function lockOntoTarget(targetPlayer)
-    if not targetPlayer then return end
-    local targetChar = getCharacter(targetPlayer)
-    if not targetChar then return end
-    local targetHrp = getHumanoidRootPart(targetPlayer)
-    if not targetHrp then return end
-    
-    local myChar = LocalPlayer.Character
-    if not myChar then return end
-    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return end
-    
-    local targetPos = targetHrp.Position
-    local myPos = myHrp.Position
-    local dist = (targetPos - myPos).Magnitude
-    
-    -- Sabit yükseklik ve mesafe (her mesafede aynı)
-    local camDistance = 14
-    local heightOffset = 12
-    
-    -- Hedefe doğru vektör
-    local dir = (targetPos - myPos).Unit
-    
-    -- Sağa kaymayı düzeltmek için: hedefin tam ortasına bak
-    local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
-    
-    -- Kamera pozisyonu: karakterin arkası + yukarı
-    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
-    
-    if camPos == camPos and lookTarget == lookTarget then
-        Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
-    end
-end
-
-local function createLockCircle()
-    if lockCircle then
-        pcall(function() lockCircle:Remove() end)
-        lockCircle = nil
-    end
-    lockCircle = Drawing.new("Circle")
-    if lockCircle then
-        lockCircle.Thickness = 3
-        lockCircle.NumSides = 32
-        lockCircle.Filled = false
-        lockCircle.Color = Color3.fromRGB(0, 180, 255)
-        lockCircle.Transparency = 0.8
-        lockCircle.Radius = 30
-        lockCircle.Visible = false
-        lockCircle.Position = Vector2.new(0, 0)
-    end
-    return lockCircle
-end
-
-local function updateLockCircle()
-    if not aimbotEnabled or not lockTarget then
-        if lockCircle then lockCircle.Visible = false end
-        return
-    end
-    local char = getCharacter(lockTarget)
-    if not char then
-        if lockCircle then lockCircle.Visible = false end
-        return
-    end
-    local hrp = getHumanoidRootPart(lockTarget)
-    if not hrp then
-        if lockCircle then lockCircle.Visible = false end
-        return
-    end
-    local pos = hrp.Position + Vector3.new(0, 2, 0)
-    local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-    if onScreen and lockCircle then
-        lockCircle.Visible = true
-        lockCircle.Position = Vector2.new(screenPos.X, screenPos.Y)
-    else
-        if lockCircle then lockCircle.Visible = false end
-    end
-end
-
-local function createToggleButton()
-    local gui = Instance.new("ScreenGui", game.CoreGui)
-    gui.Name = "AimbotToggle"
-    gui.ResetOnSpawn = false
-
-    local btn = Instance.new("ImageButton", gui)
-    btn.Size = UDim2.new(0, 80, 0, 80)
-    btn.Position = UDim2.new(0, 20, 0.42, -40)
-    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    btn.BackgroundTransparency = 0.1
-    btn.BorderSizePixel = 0
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
-
-    local outerRing = Instance.new("Frame", btn)
-    outerRing.Size = UDim2.new(1, 0, 1, 0)
-    outerRing.Position = UDim2.new(0, 0, 0, 0)
-    outerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    outerRing.BackgroundTransparency = 0.8
-    outerRing.BorderSizePixel = 3
-    outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", outerRing).CornerRadius = UDim.new(1, 0)
-
-    local innerRing = Instance.new("Frame", btn)
-    innerRing.Size = UDim2.new(0, 55, 0, 55)
-    innerRing.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
-    innerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    innerRing.BackgroundTransparency = 0.9
-    innerRing.BorderSizePixel = 2
-    innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    Instance.new("UICorner", innerRing).CornerRadius = UDim.new(1, 0)
-
-    local hLine = Instance.new("Frame", btn)
-    hLine.Size = UDim2.new(0, 28, 0, 2)
-    hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
-    hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    hLine.BackgroundTransparency = 0
-    hLine.BorderSizePixel = 0
-
-    local vLine = Instance.new("Frame", btn)
-    vLine.Size = UDim2.new(0, 2, 0, 28)
-    vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
-    vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    vLine.BackgroundTransparency = 0
-    vLine.BorderSizePixel = 0
-
-    local statusDot = Instance.new("Frame", btn)
-    statusDot.Size = UDim2.new(0, 18, 0, 18)
-    statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
-    statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    statusDot.BackgroundTransparency = 0
-    statusDot.BorderSizePixel = 0
-    Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
-
-    local statusText = Instance.new("TextLabel", btn)
-    statusText.Size = UDim2.new(1, 0, 0, 20)
-    statusText.Position = UDim2.new(0, 0, 1, -15)
-    statusText.BackgroundTransparency = 1
-    statusText.Text = "OFF"
-    statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
-    statusText.TextSize = 13
-    statusText.Font = Enum.Font.SourceSansBold
-
-    local function updateButton()
-        if aimbotEnabled then
-            btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
-            outerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
-            innerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
-            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-            statusText.Text = "ON"
-            statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
-            hLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-            vLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        else
-            btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
-            innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
-            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-            statusText.Text = "OFF"
-            statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
-            hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        -- Trail
+        if v:IsA("Trail") then
+            v.Enabled = false
+            v:Destroy()
         end
-    end
-
-    btn.Activated:Connect(function()
-        aimbotEnabled = not aimbotEnabled
-        if aimbotEnabled then
-            lockTarget = findClosestPlayer()
-        else
-            lockTarget = nil
-            if lockCircle then lockCircle.Visible = false end
+        -- Ateş
+        if v:IsA("Fire") then
+            v.Enabled = false
+            v:Destroy()
         end
-        updateButton()
-    end)
-
-    updateButton()
-    return btn
-end
-
-local function mainLoop()
-    if aimbotEnabled then
-        if not lockTarget or not isAlive(lockTarget) then
-            lockTarget = findClosestPlayer()
-            if not lockTarget then
-                if lockCircle then lockCircle.Visible = false end
-                return
+        -- Duman
+        if v:IsA("Smoke") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        -- Parıltı
+        if v:IsA("Sparkles") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        -- Işıklar
+        if v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        -- Bulutlar
+        if v:IsA("Cloud") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        -- Kırılma efektleri
+        if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        -- Çim ve arazi
+        if v:IsA("Terrain") then
+            v.WaterWaveSize = 0
+            v.WaterWaveSpeed = 0
+            v.WaterReflectance = 0
+            v.WaterTransparency = 1
+            v.Material = Enum.Material.Plastic
+        end
+        -- TÜM PARÇALARI SADELEŞTİR
+        if v:IsA("BasePart") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+            v.Transparency = 0
+            -- Şekilleri basitleştir
+            if v.Shape then
+                v.Shape = Enum.PartShape.Ball
+            end
+            -- Kırılma yok
+            if v:FindFirstChild("BreakForce") then
+                v.BreakForce = math.huge
+            end
+            if v:FindFirstChild("CanCollide") then
+                v.CanCollide = true
             end
         end
-        lockOntoTarget(lockTarget)
+        -- Modelleri sadeleştir
+        if v:IsA("Model") then
+            -- Gereksiz modelleri temizle
+            for _, child in pairs(v:GetChildren()) do
+                if child:IsA("BasePart") and child.Size.Magnitude < 0.5 then
+                    child:Destroy()
+                end
+            end
+        end
+        -- Yapraklar
+        if v:IsA("Leaf") then
+            v:Destroy()
+        end
+        -- UI efektleri (bazı oyunlar)
+        if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
+            v.Enabled = false
+        end
     end
-    updateLockCircle()
 end
 
-createLockCircle()
-createToggleButton()
+-- ===== 3. SÜREKLİ TEMİZLİK =====
+killAllEffects()
 
-RunService.RenderStepped:Connect(function()
-    pcall(mainLoop)
+-- Yeni eklenen her şeyi temizle
+Workspace.DescendantAdded:Connect(function(v)
+    task.wait(0.05)
+    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or 
+       v:IsA("Smoke") or v:IsA("Sparkles") then
+        v.Enabled = false
+        v:Destroy()
+    end
+    if v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+        v.Enabled = false
+        v:Destroy()
+    end
+    if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+        v.Enabled = false
+        v:Destroy()
+    end
+    if v:IsA("BasePart") then
+        v.Material = Enum.Material.Plastic
+        v.Reflectance = 0
+        v.Transparency = 0
+    end
+    if v:IsA("Cloud") then
+        v:Destroy()
+    end
 end)
 
-print("JJS AIMBOT YUKLENDI! (SABIT YUKSEKLIK VE MESAFE, DUZ BAKIS)")
+-- ===== 4. MESAFE AYARI =====
+Workspace.CameraMinZoomDistance = 0.5
+Workspace.CameraMaxZoomDistance = 150
+
+-- ===== 5. KARAKTER HIZI =====
+local function speedBoost()
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = 25
+            hum.JumpPower = 65
+            -- Animasyon hızı
+            local animator = hum:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(1.5)
+                end
+            end
+        end
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(0.3)
+    speedBoost()
+end)
+
+RunService.RenderStepped:Connect(function()
+    speedBoost()
+end)
+
+-- ===== 6. GEREKSİZ ŞEYLERİ TEMİZLE =====
+-- Çöpleri temizle
+RunService.Stepped:Connect(function()
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("BasePart") and v.Size.Magnitude < 0.3 then
+            v:Destroy()
+        end
+    end
+end)
+
+-- ===== 7. SESLERİ KAPAT =====
+for _, v in pairs(Workspace:GetDescendants()) do
+    if v:IsA("Sound") then
+        v.Volume = 0
+        v.Playing = false
+    end
+end
+
+print("✅ MAKSİMUM FPS BOOST AKTİF!")
+print("📌 Tüm efektler, ışıklar, partiküller KAPALI")
+print("📌 Şekiller basitleştirildi, FPS maksimum!")
