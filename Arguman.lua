@@ -1,126 +1,124 @@
--- DELTA EXECUTOR - SPAM BOT TEMİZLEYİCİ
+-- DELTA EXECUTOR - SİS BEYAZLIK TEMİZLEYİCİ + FPS BOOST
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Lighting = game:GetService("Lighting")
-local Debris = game:GetService("Debris")
+local Camera = game:GetService("Workspace").CurrentCamera
 
-print("🧹 SPAM TEMİZLEYİCİ BAŞLATILDI...")
+print("🌫️ SİS VE BEYAZLIK TEMİZLENİYOR...")
 
--- ===== 1. SAHTE OYUNCULARI TEMİZLE =====
-local function temizle()
-    -- Tüm oyuncuları kontrol et
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player then
-            local char = p.Character
-            if char then
-                -- Bot tespiti: İsmi "Buddha_Spammer" veya benzeri
-                if p.Name:match("Spammer") or p.Name:match("Buddha") or 
-                   p.Name:match("Bot") or p.Name:match("spam") or
-                   p.Name:match("Clone") or p.Name:match("Fake") then
-                    -- Karakteri yok et
-                    if char then
-                        char:Destroy()
-                    end
-                    -- Oyuncuyu at
-                    p:Kick("Spam bot temizlendi!")
-                end
-            end
-        end
+-- ===== 1. SİS VE IŞIK AYARLARI (GÖRÜŞ AÇ) =====
+Lighting.Brightness = 1
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 100000  -- Sis sonsuza kadar uzak
+Lighting.FogStart = 0     -- Sis başlangıcı 0
+Lighting.Ambient = Color3.fromRGB(255, 255, 255)  -- Beyazlığı azalt
+Lighting.OutdoorAmbient = Color3.fromRGB(200, 200, 200)
+Lighting.EnvironmentDiffuseScale = 0.5
+Lighting.EnvironmentSpecularScale = 0.5
+
+-- SİS RENGİNİ SİYAH YAP (beyazlığı önler)
+Lighting.FogColor = Color3.fromRGB(0, 0, 0)
+
+-- ZAMAN AYARI (gündüz yap)
+Lighting.ClockTime = 12
+Lighting.GeographicLatitude = 0
+
+-- TÜM IŞIK EFEKTLERİNİ KAPAT
+for _, v in pairs(Lighting:GetChildren()) do
+    if v:IsA("BloomEffect") or v:IsA("BlurEffect") or 
+       v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") or
+       v:IsA("Atmosphere") then
+        v.Enabled = false
+        v:Destroy()
     end
-    
-    -- ===== 2. SAHTE OBJELERİ TEMİZLE =====
+end
+
+-- ===== 2. ATMOSFERİ SIFIRLA =====
+local function clearAtmosphere()
     for _, v in pairs(Workspace:GetDescendants()) do
-        -- Spam objeleri
-        if v:IsA("BasePart") or v:IsA("Model") then
-            if v.Name:match("Spam") or v.Name:match("spam") or 
-               v.Name:match("Buddha") or v.Name:match("Clone") or
-               v.Name:match("Fake") or v.Name:match("Bot") then
-                v:Destroy()
-            end
+        if v:IsA("Atmosphere") then
+            v.Enabled = false
+            v:Destroy()
         end
-        
-        -- UI Spam
-        if v:IsA("ScreenGui") or v:IsA("BillboardGui") then
-            if v.Name:match("Spam") or v.Name:match("spam") or
-               v.Name:match("Buddha") or v.Name:match("Hack") then
-                v:Destroy()
-            end
+        if v:IsA("BlurEffect") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        if v:IsA("SunRaysEffect") then
+            v.Enabled = false
+            v:Destroy()
+        end
+        if v:IsA("ColorCorrectionEffect") then
+            v.Enabled = false
+            v:Destroy()
         end
     end
-    
-    -- ===== 3. REKLAM METİNLERİNİ TEMİZLE =====
+end
+
+clearAtmosphere()
+
+-- ===== 3. KAMERA AYARI =====
+Camera.FieldOfView = 100  -- Daha geniş görüş
+
+-- ===== 4. BEYAZ OBJELERİ TEMİZLE =====
+local function fixWhiteObjects()
     for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("TextLabel") or v:IsA("TextButton") then
-            if v.Text:match("Every Last Drop") or v.Text:match("Granite") or
-               v.Text:match("Pilepeng") or v.Text:match("Appelizer") then
-                v:Destroy()
+        if v:IsA("BasePart") then
+            -- Beyaz renkli objeleri doğal renge çevir
+            if v.Color == Color3.fromRGB(255, 255, 255) or 
+               v.Color == Color3.fromRGB(200, 200, 200) then
+                v.Color = Color3.fromRGB(150, 150, 150)
             end
-        end
-    end
-    
-    -- ===== 4. SAHTE OYUNCU LİSTESİNİ TEMİZLE =====
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= player then
-            if v.Name:match("Spammer") or v.Name:match("Buddha") or
-               v.Name:match("Bot") or v.Name:match("spam") or
-               v.Name:match("Clone") or v.Name:match("Fake") then
-                v:Kick("Spam bot temizlendi!")
+            -- Şeffaflığı sıfırla
+            if v.Transparency > 0.5 then
+                v.Transparency = 0.3
             end
         end
     end
 end
 
--- ===== 5. SÜREKLİ TEMİZLİK =====
-temizle()
+fixWhiteObjects()
 
--- Her 2 saniyede bir temizle
+-- ===== 5. SÜREKLİ TEMİZLİK =====
 spawn(function()
     while true do
         wait(2)
-        temizle()
+        -- Sis ayarlarını koru
+        Lighting.FogEnd = 100000
+        Lighting.FogColor = Color3.fromRGB(0, 0, 0)
+        Lighting.Brightness = 1
+        Lighting.Ambient = Color3.fromRGB(200, 200, 200)
+        
+        -- Beyaz objeleri temizle
+        fixWhiteObjects()
+        
+        -- Yeni atmosferleri temizle
+        clearAtmosphere()
     end
 end)
 
 -- Yeni eklenenleri temizle
 Workspace.DescendantAdded:Connect(function(v)
     task.wait(0.1)
-    if v:IsA("BasePart") or v:IsA("Model") then
-        if v.Name:match("Spam") or v.Name:match("Buddha") or
-           v.Name:match("Clone") or v.Name:match("Fake") or
-           v.Name:match("Bot") then
-            v:Destroy()
-        end
+    if v:IsA("Atmosphere") or v:IsA("BlurEffect") or 
+       v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") then
+        v.Enabled = false
+        v:Destroy()
     end
-    if v:IsA("ScreenGui") or v:IsA("BillboardGui") then
-        if v.Name:match("Spam") or v.Name:match("spam") or
-           v.Name:match("Buddha") or v.Name:match("Hack") then
-            v:Destroy()
+    if v:IsA("BasePart") then
+        if v.Color == Color3.fromRGB(255, 255, 255) then
+            v.Color = Color3.fromRGB(150, 150, 150)
         end
-    end
-end)
-
--- Yeni oyuncu gelince temizle
-Players.PlayerAdded:Connect(function(p)
-    task.wait(0.5)
-    if p ~= player then
-        if p.Name:match("Spammer") or p.Name:match("Buddha") or
-           p.Name:match("Bot") or p.Name:match("spam") or
-           p.Name:match("Clone") or p.Name:match("Fake") then
-            p:Kick("Spam bot temizlendi!")
+        if v.Transparency > 0.5 then
+            v.Transparency = 0.3
         end
     end
 end)
 
--- ===== 6. FPS BOOST DA EKLE =====
-Lighting.Brightness = 0.3
-Lighting.GlobalShadows = false
-Lighting.FogEnd = 30
-Lighting.Ambient = Color3.fromRGB(100, 100, 100)
-
--- Tüm efektleri kapat
+-- ===== 6. FPS BOOST =====
+-- Efektleri kapat
 for _, v in pairs(Workspace:GetDescendants()) do
     if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or
        v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("PointLight") then
@@ -152,5 +150,5 @@ end)
 
 RunService.RenderStepped:Connect(speed)
 
-print("✅ SPAM TEMİZLENDİ!")
-print("📌 Oyun artık oynanabilir durumda!")
+print("✅ SİS VE BEYAZLIK TEMİZLENDİ!")
+print("📌 Görüş açıldı, FPS arttı!")
