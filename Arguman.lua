@@ -1,196 +1,156 @@
--- DELTA EXECUTOR - MAKSİMUM FPS BOOST (TÜM EFEKTLER KAPALI)
+-- DELTA EXECUTOR - SPAM BOT TEMİZLEYİCİ
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 
-print("⚡ MAKSİMUM FPS BOOST BAŞLATILIYOR...")
+print("🧹 SPAM TEMİZLEYİCİ BAŞLATILDI...")
 
--- ===== 1. IŞIKLANDIRMA (TAMAMEN KAPALI) =====
-Lighting.Brightness = 0
-Lighting.GlobalShadows = false
-Lighting.FogEnd = 10
-Lighting.FogStart = 0
-Lighting.ClockTime = 12
-Lighting.Ambient = Color3.fromRGB(50, 50, 50)
-Lighting.ColorShift_Top = Color3.new(0,0,0)
-Lighting.ColorShift_Bottom = Color3.new(0,0,0)
-Lighting.EnvironmentDiffuseScale = 0
-Lighting.EnvironmentSpecularScale = 0
-Lighting.OutdoorAmbient = Color3.fromRGB(50, 50, 50)
-Lighting.ShadowSoftness = 0
-Lighting.Technology = Enum.Technology.Compatibility
-
--- ===== 2. TÜM EFEKTLERİ KAPAT =====
-local function killAllEffects()
-    for _, v in pairs(Workspace:GetDescendants()) do
-        -- Partiküller
-        if v:IsA("ParticleEmitter") then
-            v.Enabled = false
-            v.Rate = 0
-            v:Destroy()
-        end
-        -- Trail
-        if v:IsA("Trail") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Ateş
-        if v:IsA("Fire") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Duman
-        if v:IsA("Smoke") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Parıltı
-        if v:IsA("Sparkles") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Işıklar
-        if v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Bulutlar
-        if v:IsA("Cloud") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Kırılma efektleri
-        if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
-            v.Enabled = false
-            v:Destroy()
-        end
-        -- Çim ve arazi
-        if v:IsA("Terrain") then
-            v.WaterWaveSize = 0
-            v.WaterWaveSpeed = 0
-            v.WaterReflectance = 0
-            v.WaterTransparency = 1
-            v.Material = Enum.Material.Plastic
-        end
-        -- TÜM PARÇALARI SADELEŞTİR
-        if v:IsA("BasePart") then
-            v.Material = Enum.Material.Plastic
-            v.Reflectance = 0
-            v.Transparency = 0
-            -- Şekilleri basitleştir
-            if v.Shape then
-                v.Shape = Enum.PartShape.Ball
-            end
-            -- Kırılma yok
-            if v:FindFirstChild("BreakForce") then
-                v.BreakForce = math.huge
-            end
-            if v:FindFirstChild("CanCollide") then
-                v.CanCollide = true
-            end
-        end
-        -- Modelleri sadeleştir
-        if v:IsA("Model") then
-            -- Gereksiz modelleri temizle
-            for _, child in pairs(v:GetChildren()) do
-                if child:IsA("BasePart") and child.Size.Magnitude < 0.5 then
-                    child:Destroy()
+-- ===== 1. SAHTE OYUNCULARI TEMİZLE =====
+local function temizle()
+    -- Tüm oyuncuları kontrol et
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player then
+            local char = p.Character
+            if char then
+                -- Bot tespiti: İsmi "Buddha_Spammer" veya benzeri
+                if p.Name:match("Spammer") or p.Name:match("Buddha") or 
+                   p.Name:match("Bot") or p.Name:match("spam") or
+                   p.Name:match("Clone") or p.Name:match("Fake") then
+                    -- Karakteri yok et
+                    if char then
+                        char:Destroy()
+                    end
+                    -- Oyuncuyu at
+                    p:Kick("Spam bot temizlendi!")
                 end
             end
         end
-        -- Yapraklar
-        if v:IsA("Leaf") then
-            v:Destroy()
+    end
+    
+    -- ===== 2. SAHTE OBJELERİ TEMİZLE =====
+    for _, v in pairs(Workspace:GetDescendants()) do
+        -- Spam objeleri
+        if v:IsA("BasePart") or v:IsA("Model") then
+            if v.Name:match("Spam") or v.Name:match("spam") or 
+               v.Name:match("Buddha") or v.Name:match("Clone") or
+               v.Name:match("Fake") or v.Name:match("Bot") then
+                v:Destroy()
+            end
         end
-        -- UI efektleri (bazı oyunlar)
-        if v:IsA("BillboardGui") or v:IsA("SurfaceGui") then
-            v.Enabled = false
+        
+        -- UI Spam
+        if v:IsA("ScreenGui") or v:IsA("BillboardGui") then
+            if v.Name:match("Spam") or v.Name:match("spam") or
+               v.Name:match("Buddha") or v.Name:match("Hack") then
+                v:Destroy()
+            end
+        end
+    end
+    
+    -- ===== 3. REKLAM METİNLERİNİ TEMİZLE =====
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("TextLabel") or v:IsA("TextButton") then
+            if v.Text:match("Every Last Drop") or v.Text:match("Granite") or
+               v.Text:match("Pilepeng") or v.Text:match("Appelizer") then
+                v:Destroy()
+            end
+        end
+    end
+    
+    -- ===== 4. SAHTE OYUNCU LİSTESİNİ TEMİZLE =====
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= player then
+            if v.Name:match("Spammer") or v.Name:match("Buddha") or
+               v.Name:match("Bot") or v.Name:match("spam") or
+               v.Name:match("Clone") or v.Name:match("Fake") then
+                v:Kick("Spam bot temizlendi!")
+            end
         end
     end
 end
 
--- ===== 3. SÜREKLİ TEMİZLİK =====
-killAllEffects()
+-- ===== 5. SÜREKLİ TEMİZLİK =====
+temizle()
 
--- Yeni eklenen her şeyi temizle
+-- Her 2 saniyede bir temizle
+spawn(function()
+    while true do
+        wait(2)
+        temizle()
+    end
+end)
+
+-- Yeni eklenenleri temizle
 Workspace.DescendantAdded:Connect(function(v)
-    task.wait(0.05)
-    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or 
-       v:IsA("Smoke") or v:IsA("Sparkles") then
-        v.Enabled = false
-        v:Destroy()
+    task.wait(0.1)
+    if v:IsA("BasePart") or v:IsA("Model") then
+        if v.Name:match("Spam") or v.Name:match("Buddha") or
+           v.Name:match("Clone") or v.Name:match("Fake") or
+           v.Name:match("Bot") then
+            v:Destroy()
+        end
     end
-    if v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
-        v.Enabled = false
-        v:Destroy()
+    if v:IsA("ScreenGui") or v:IsA("BillboardGui") then
+        if v.Name:match("Spam") or v.Name:match("spam") or
+           v.Name:match("Buddha") or v.Name:match("Hack") then
+            v:Destroy()
+        end
     end
-    if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+end)
+
+-- Yeni oyuncu gelince temizle
+Players.PlayerAdded:Connect(function(p)
+    task.wait(0.5)
+    if p ~= player then
+        if p.Name:match("Spammer") or p.Name:match("Buddha") or
+           p.Name:match("Bot") or p.Name:match("spam") or
+           p.Name:match("Clone") or p.Name:match("Fake") then
+            p:Kick("Spam bot temizlendi!")
+        end
+    end
+end)
+
+-- ===== 6. FPS BOOST DA EKLE =====
+Lighting.Brightness = 0.3
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 30
+Lighting.Ambient = Color3.fromRGB(100, 100, 100)
+
+-- Tüm efektleri kapat
+for _, v in pairs(Workspace:GetDescendants()) do
+    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or
+       v:IsA("Smoke") or v:IsA("Sparkles") or v:IsA("PointLight") then
         v.Enabled = false
         v:Destroy()
     end
     if v:IsA("BasePart") then
         v.Material = Enum.Material.Plastic
         v.Reflectance = 0
-        v.Transparency = 0
     end
-    if v:IsA("Cloud") then
-        v:Destroy()
-    end
-end)
+end
 
--- ===== 4. MESAFE AYARI =====
-Workspace.CameraMinZoomDistance = 0.5
-Workspace.CameraMaxZoomDistance = 150
-
--- ===== 5. KARAKTER HIZI =====
-local function speedBoost()
+-- ===== 7. KARAKTER HIZI =====
+local function speed()
     local char = player.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
-            hum.WalkSpeed = 25
-            hum.JumpPower = 65
-            -- Animasyon hızı
-            local animator = hum:FindFirstChildOfClass("Animator")
-            if animator then
-                for _, track in pairs(animator:GetPlayingAnimationTracks()) do
-                    track:AdjustSpeed(1.5)
-                end
-            end
+            hum.WalkSpeed = 22
+            hum.JumpPower = 60
         end
     end
 end
 
 player.CharacterAdded:Connect(function()
     task.wait(0.3)
-    speedBoost()
+    speed()
 end)
 
-RunService.RenderStepped:Connect(function()
-    speedBoost()
-end)
+RunService.RenderStepped:Connect(speed)
 
--- ===== 6. GEREKSİZ ŞEYLERİ TEMİZLE =====
--- Çöpleri temizle
-RunService.Stepped:Connect(function()
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.Size.Magnitude < 0.3 then
-            v:Destroy()
-        end
-    end
-end)
-
--- ===== 7. SESLERİ KAPAT =====
-for _, v in pairs(Workspace:GetDescendants()) do
-    if v:IsA("Sound") then
-        v.Volume = 0
-        v.Playing = false
-    end
-end
-
-print("✅ MAKSİMUM FPS BOOST AKTİF!")
-print("📌 Tüm efektler, ışıklar, partiküller KAPALI")
-print("📌 Şekiller basitleştirildi, FPS maksimum!")
+print("✅ SPAM TEMİZLENDİ!")
+print("📌 Oyun artık oynanabilir durumda!")
