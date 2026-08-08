@@ -1,4 +1,3 @@
--- BLOX FRUITS AUTO CHEST (TÜM SANDIKLAR - NOCLIP OTOMATIK + ROTASYON)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -117,10 +116,8 @@ local function flyTo(targetPos)
     
     enableWalkOnWater()
     
-    -- Mesafeyi hesapla
     local distance = (targetPos - hrp.Position).Magnitude
     
-    -- SANDIĞA YAKINSA: NOCLIP KAPAT ve direkt git
     if distance < 15 then
         setNoclip(false)
         isNearChest = true
@@ -130,7 +127,6 @@ local function flyTo(targetPos)
         return true
     end
     
-    -- UZAKTA: NOCLIP AÇ ve uç
     isNearChest = false
     setNoclip(true)
     
@@ -141,7 +137,6 @@ local function flyTo(targetPos)
     local dir = (targetWithHeight - hrp.Position).Unit
     local speed = cfg.flySpeed
     
-    -- Uzun mesafe: ışınlan + uç
     if distance > 100 then
         local steps = math.min(math.floor(distance / 60), 4)
         for i = 1, steps do
@@ -152,7 +147,6 @@ local function flyTo(targetPos)
         end
     end
     
-    -- Yaklaşma
     local attempts = 0
     local currentDist = (targetWithHeight - hrp.Position).Magnitude
     while currentDist > 10 and attempts < 40 do
@@ -168,7 +162,6 @@ local function flyTo(targetPos)
         wait(0.02)
     end
     
-    -- Sandığa yaklaş: NOCLIP KAPAT
     setNoclip(false)
     isNearChest = true
     
@@ -178,7 +171,6 @@ local function flyTo(targetPos)
     return true
 end
 
--- OTOMATİK ROTASYON (Yeni sandık ara)
 local function autoRotate()
     local hrp = getHumanoidRootPart()
     if not hrp then return end
@@ -188,7 +180,6 @@ local function autoRotate()
         hum.AutoRotate = true
     end
     
-    -- Karakteri yavaşça döndür (yeni sandık bulmak için)
     local currentCF = hrp.CFrame
     local newCF = currentCF * CFrame.Angles(0, math.rad(cfg.rotationSpeed), 0)
     hrp.CFrame = newCF
@@ -200,12 +191,10 @@ local function interactWithChest(chest)
     local hrp = getHumanoidRootPart()
     if not hrp then return false end
     
-    -- Sandığın tam üzerine ışınlan
     local chestPos = chest.position
     hrp.CFrame = CFrame.new(chestPos + Vector3.new(0, 1.5, 0))
     wait(0.15)
     
-    -- ClickDetector
     local click = chest.object:FindFirstChildOfClass("ClickDetector")
     if click then
         fireclickdetector(click)
@@ -213,7 +202,6 @@ local function interactWithChest(chest)
         return true
     end
     
-    -- ProximityPrompt
     local prompt = chest.object:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         prompt:Activate()
@@ -221,7 +209,6 @@ local function interactWithChest(chest)
         return true
     end
     
-    -- Tool
     if chest.object:IsA("Tool") then
         chest.object.Parent = LocalPlayer.Character
         wait(0.1)
@@ -319,7 +306,6 @@ local function mainLoop()
     
     local chest = getBestChest()
     if not chest then
-        -- Sandık yoksa rotasyon yap
         autoRotate()
         wait(0.5)
         return
@@ -332,7 +318,6 @@ local function mainLoop()
         return
     end
     
-    -- Sandığı al
     local grabbed = interactWithChest(chest)
     if grabbed then
         print("✅ " .. chest.name .. " toplandı!")
@@ -369,5 +354,4 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (NOCLIP OTOMATIK + ROTASYON) YUKLENDI!")
-print("YUKSEKTEN UCUS + NOCLIP + WALK ON WATER + OTOMATIK ROTASYON AKTIF!")
+print("BLOX FRUITS AUTO CHEST YUKLENDI!")
