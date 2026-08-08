@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (HIZLI + SANDIKLARI TAMAMEN UNUT)
+-- BLOX FRUITS AUTO CHEST (GELİŞMİŞ - SORUNSUZ UÇUŞ)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -6,14 +6,14 @@ local Camera = workspace.CurrentCamera
 
 local chestFarmEnabled = false
 local chestESP = {}
-local collectedChests = {} -- Toplanan sandıkların ID'si
+local collectedChests = {}
+local isFlying = false
 
 local cfg = {
-    flySpeed = 200,
-    flyHeight = 45,
+    flySpeed = 180,
+    flyHeight = 60,
     prioritizeValue = false,
-    checkInterval = 0.1,
-    rotationSpeed = 2,
+    checkInterval = 0.15,
 }
 
 local CHEST_VALUES = {
@@ -51,12 +51,30 @@ local function setNoclip(state)
     end
 end
 
-local function enableWalkOnWater()
+local function enableFly()
+    local hum = getHumanoid()
+    if not hum then return end
+    hum.PlatformStand = true
+    hum.Sit = false
+    hum.AutoRotate = false
     pcall(function()
-        local hum = getHumanoid()
-        if hum then
-            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
-        end
+        hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    end)
+end
+
+local function disableFly()
+    local hum = getHumanoid()
+    if not hum then return end
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    pcall(function()
+        hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
     end)
 end
 
@@ -76,20 +94,13 @@ local function findChests()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
-                if not isChestValid(obj) then
-                    continue
-                end
+                if not isChestValid(obj) then continue end
                 
                 local value = 0
-                if name:find("diamond") then
-                    value = CHEST_VALUES.Diamond
-                elseif name:find("golden") or name:find("gold") then
-                    value = CHEST_VALUES.Golden
-                elseif name:find("silver") then
-                    value = CHEST_VALUES.Silver
-                else
-                    value = CHEST_VALUES.Silver
-                end
+                if name:find("diamond") then value = CHEST_VALUES.Diamond
+                elseif name:find("golden") or name:find("gold") then value = CHEST_VALUES.Golden
+                elseif name:find("silver") then value = CHEST_VALUES.Silver
+                else value = CHEST_VALUES.Silver end
                 
                 local pos = obj.Position
                 if pos == pos then
@@ -112,8 +123,6 @@ end
 local function getBestChest()
     local chests = findChests()
     if #chests == 0 then return nil end
-    
-    -- En yakın sandığı bul (hızlı toplama için)
     table.sort(chests, function(a, b) return a.distance < b.distance end)
     return chests[1]
 end
@@ -123,37 +132,55 @@ local function flyTo(targetPos)
     local hum = getHumanoid()
     if not hrp or not hum then return false end
     
-    enableWalkOnWater()
+    -- Uçuş modu
+    enableFly()
     setNoclip(true)
+    isFlying = true
     
-    hum.PlatformStand = true
-    hum.Sit = false
+    -- Yüksekten uç (denizden uzak)
+    local flyTarget = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
     
-    local targetWithHeight = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
-    local distance = (targetWithHeight - hrp.Position).Magnitude
+    -- Eğer suyun içindeyse direkt yukarı çık
+    if hrp.Position.Y < 5 then
+        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
+        wait(0.05)
+    end
     
-    -- DOĞRUDAN IŞINLAN (hızlı)
-    if distance > 50 then
-        local steps = math.min(math.floor(distance / 80), 3)
+    -- Mesafe
+    local distance = (flyTarget - hrp.Position).Magnitude
+    
+    -- Işınlanma (uzak mesafe)
+    if distance > 80 then
+        local steps = math.min(math.floor(distance / 100), 3)
         for i = 1, steps do
             if not chestFarmEnabled then return false end
-            local stepPos = hrp.Position + (targetWithHeight - hrp.Position).Unit * 80
+            local stepPos = hrp.Position + (flyTarget - hrp.Position).Unit * 100
+            stepPos = Vector3.new(stepPos.X, math.max(stepPos.Y, 30), stepPos.Z)
             hrp.CFrame = CFrame.new(stepPos)
-            wait(0.01)
+            wait(0.02)
         end
     end
     
     -- Hızlı uçuş
-    local dir = (targetWithHeight - hrp.Position).Unit
+    local dir = (flyTarget - hrp.Position).Unit
     local attempts = 0
-    local currentDist = (targetWithHeight - hrp.Position).Magnitude
-    while currentDist > 5 and attempts < 30 do
+    local currentDist = (flyTarget - hrp.Position).Magnitude
+    
+    while currentDist > 8 and attempts < 50 do
         if not chestFarmEnabled then return false end
         if not getCharacter() then return false end
         
         local currentPos = hrp.Position
-        currentDist = (targetWithHeight - currentPos).Magnitude
-        local newPos = currentPos + dir * cfg.flySpeed * 0.1
+        currentDist = (flyTarget - currentPos).Magnitude
+        
+        -- Yükseklik kontrolü (denize düşme)
+        if currentPos.Y < 10 then
+            hrp.CFrame = CFrame.new(currentPos + Vector3.new(0, 20, 0))
+            wait(0.02)
+        end
+        
+        local newPos = currentPos + dir * cfg.flySpeed * 0.08
+        newPos = Vector3.new(newPos.X, math.max(newPos.Y, 20), newPos.Z)
         hrp.CFrame = CFrame.new(newPos)
         
         attempts = attempts + 1
@@ -162,9 +189,13 @@ local function flyTo(targetPos)
     
     -- Sandığa yaklaş (noclip kapat)
     setNoclip(false)
-    local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
-    hrp.CFrame = CFrame.new(targetPosGround)
+    isFlying = false
+    
+    local landPos = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
+    hrp.CFrame = CFrame.new(landPos)
     wait(0.05)
+    
+    disableFly()
     return true
 end
 
@@ -178,44 +209,35 @@ local function interactWithChest(chest)
     wait(0.1)
     
     local success = false
-    
-    -- ClickDetector
     local click = chest.object:FindFirstChildOfClass("ClickDetector")
     if click then
         fireclickdetector(click)
         success = true
     end
     
-    -- ProximityPrompt
     local prompt = chest.object:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         prompt:Activate()
         success = true
     end
     
-    -- Tool
     if chest.object:IsA("Tool") then
         chest.object.Parent = LocalPlayer.Character
         success = true
     end
     
     if success then
-        local id = chest.id or tostring(chest.object)
-        collectedChests[id] = true
+        collectedChests[chest.id] = true
         return true
     end
-    
     return false
 end
 
 local function createChestESP()
     for _, obj in pairs(chestESP) do
-        pcall(function() 
-            if obj.text then obj.text:Remove() end
-        end)
+        pcall(function() if obj.text then obj.text:Remove() end end)
     end
     chestESP = {}
-    
     if not chestFarmEnabled then return end
     
     local count = 0
@@ -224,9 +246,7 @@ local function createChestESP()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
-                if not isChestValid(obj) then
-                    continue
-                end
+                if not isChestValid(obj) then continue end
                 local pos = obj.Position
                 if pos == pos then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -265,10 +285,9 @@ local function createPanel()
     btn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
-    -- Reset butonu
     local resetBtn = Instance.new("TextButton", gui)
     resetBtn.Size = UDim2.new(0, 50, 0, 50)
-    resetBtn.Position = UDim2.new(0.12, 0, 0.85, 0)
+    resetBtn.Position = UDim2.new(0.13, 0, 0.85, 0)
     resetBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
     resetBtn.Text = "↺"
     resetBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -285,16 +304,17 @@ local function createPanel()
         if chestFarmEnabled then
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
-            enableWalkOnWater()
             collectedChests = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
             setNoclip(false)
+            disableFly()
+            isFlying = false
             local hum = getHumanoid()
-            if hum then 
+            if hum then
                 hum.PlatformStand = false
-                hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+                hum.AutoRotate = true
             end
             collectedChests = {}
         end
@@ -312,10 +332,10 @@ local function mainLoop()
         return
     end
     
-    -- Eğer denizdeyse yukarı çık
-    if hrp.Position.Y < 0 then
-        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 20, 0))
-        wait(0.1)
+    -- Suyun içindeyse yukarı çık
+    if hrp.Position.Y < 2 then
+        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
+        wait(0.05)
     end
     
     local chest = getBestChest()
@@ -334,9 +354,7 @@ local function mainLoop()
     if grabbed then
         print("✅ " .. chest.name .. " toplandı!")
     else
-        -- Toplanamadıysa da unut (takılmasın)
-        local id = chest.id or tostring(chest.object)
-        collectedChests[id] = true
+        collectedChests[chest.id] = true
         print("⚠️ " .. chest.name .. " atlandı!")
     end
     
@@ -350,12 +368,9 @@ task.spawn(function()
         pcall(function()
             if chestFarmEnabled then
                 createChestESP()
-                enableWalkOnWater()
             else
                 for _, obj in pairs(chestESP) do
-                    pcall(function() 
-                        if obj.text then obj.text:Remove() end
-                    end)
+                    pcall(function() if obj.text then obj.text:Remove() end end)
                 end
                 chestESP = {}
             end
@@ -369,6 +384,5 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (HIZLI + SANDIKLARI UNUT) YUKLENDI!")
-print("📦 Toplanan sandıklar tamamen unutulur.")
-print("🔄 '↺' butonu ile hatırlanan sandıkları temizle.")
+print("BLOX FRUITS AUTO CHEST (GELİSMIS UCUS) YUKLENDI!")
+print("📦 Sorunsuz uçuş, denizden kaçınma, noclip aktif.")
