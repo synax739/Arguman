@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI HATIRLA + BEKLE)
+-- BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI TAMAMEN UNUT)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -6,8 +6,8 @@ local Camera = workspace.CurrentCamera
 
 local chestFarmEnabled = false
 local chestESP = {}
-local collectedChests = {} -- Toplanan sandıkları hatırla
-local chestCooldown = {} -- Sandık yenilenme süresi
+local collectedChests = {} -- Toplanan sandıkların ID'si
+local ignoredChests = {} -- Şu anlık görmezden gelinen sandıklar
 
 local cfg = {
     flySpeed = 120,
@@ -15,7 +15,6 @@ local cfg = {
     prioritizeValue = false,
     checkInterval = 0.15,
     rotationSpeed = 1.5,
-    respawnWait = 10, -- Sandık yenilenene kadar bekleme süresi
 }
 
 local CHEST_VALUES = {
@@ -62,17 +61,11 @@ local function enableWalkOnWater()
     end)
 end
 
-local function isChestAvailable(chestObj)
+local function isChestValid(chestObj)
     if not chestObj or not chestObj.Parent then return false end
-    -- Sandık hala varsa ve toplanmamışsa
-    if collectedChests[chestObj] then
-        local lastCollect = collectedChests[chestObj]
-        if tick() - lastCollect < cfg.respawnWait then
-            return false -- Hala bekleme süresinde
-        else
-            collectedChests[chestObj] = nil -- Süre doldu, tekrar toplanabilir
-        end
-    end
+    local id = tostring(chestObj)
+    if collectedChests[id] then return false end
+    if ignoredChests[id] then return false end
     return true
 end
 
@@ -85,8 +78,7 @@ local function findChests()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
-                -- Sandık mevcut ve toplanabilir mi?
-                if not isChestAvailable(obj) then
+                if not isChestValid(obj) then
                     continue
                 end
                 
@@ -106,6 +98,7 @@ local function findChests()
                     local dist = (myPos.Position - pos).Magnitude
                     table.insert(chests, {
                         object = obj,
+                        id = tostring(obj),
                         position = pos,
                         value = value,
                         distance = dist,
@@ -141,14 +134,12 @@ local function flyTo(targetPos)
     
     if distance < 15 then
         setNoclip(false)
-        isNearChest = true
         local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
         hrp.CFrame = CFrame.new(targetPosGround)
         wait(0.1)
         return true
     end
     
-    isNearChest = false
     setNoclip(true)
     
     hum.PlatformStand = true
@@ -184,7 +175,6 @@ local function flyTo(targetPos)
     end
     
     setNoclip(false)
-    isNearChest = true
     
     local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
     hrp.CFrame = CFrame.new(targetPosGround)
@@ -216,27 +206,36 @@ local function interactWithChest(chest)
     hrp.CFrame = CFrame.new(chestPos + Vector3.new(0, 1.5, 0))
     wait(0.15)
     
+    local success = false
     local click = chest.object:FindFirstChildOfClass("ClickDetector")
     if click then
         fireclickdetector(click)
-        wait(0.2)
-        -- Sandığı toplanmış olarak işaretle
-        collectedChests[chest.object] = tick()
-        return true
+        success = true
     end
     
     local prompt = chest.object:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         prompt:Activate()
-        wait(0.2)
-        collectedChests[chest.object] = tick()
-        return true
+        success = true
     end
     
     if chest.object:IsA("Tool") then
         chest.object.Parent = LocalPlayer.Character
-        wait(0.1)
-        collectedChests[chest.object] = tick()
+        success = true
+    end
+    
+    if success then
+        -- Sandığı toplanmış olarak işaretle (hemen unut)
+        local id = chest.id or tostring(chest.object)
+        collectedChests[id] = true
+        ignoredChests[id] = true
+        
+        -- 30 saniye sonra tekrar hatırlamaya başla (yenilenme süresi)
+        task.spawn(function()
+            wait(30)
+            ignoredChests[id] = nil
+        end)
+        
         return true
     end
     
@@ -259,8 +258,7 @@ local function createChestESP()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
-                -- Sadece toplanabilir sandıkları göster
-                if not isChestAvailable(obj) then
+                if not isChestValid(obj) then
                     continue
                 end
                 local pos = obj.Position
@@ -307,19 +305,20 @@ local function createPanel()
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
             enableWalkOnWater()
-            -- Eski sandık listesini temizle
             collectedChests = {}
+            ignoredChests = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
             setNoclip(false)
-            isNearChest = false
             local hum = getHumanoid()
             if hum then 
                 hum.PlatformStand = false
                 hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
                 hum.AutoRotate = true
             end
+            collectedChests = {}
+            ignoredChests = {}
         end
     end)
     
@@ -342,7 +341,6 @@ local function mainLoop()
         return
     end
     
-    currentTarget = chest
     local success = flyTo(chest.position)
     if not success then
         wait(0.3)
@@ -351,9 +349,16 @@ local function mainLoop()
     
     local grabbed = interactWithChest(chest)
     if grabbed then
-        print("✅ " .. chest.name .. " toplandı! " .. cfg.respawnWait .. " saniye bekleniyor...")
+        print("✅ " .. chest.name .. " toplandı! Yeni sandık aranıyor...")
     else
-        print("⚠️ " .. chest.name .. " toplanamadı!")
+        print("⚠️ " .. chest.name .. " toplanamadı! Atlanıyor...")
+        -- Toplanamadıysa da unut (takılı kalmasın)
+        local id = chest.id or tostring(chest.object)
+        ignoredChests[id] = true
+        task.spawn(function()
+            wait(10)
+            ignoredChests[id] = nil
+        end)
     end
     
     wait(0.2)
@@ -385,5 +390,5 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI HATIRLA) YUKLENDI!")
-print("📦 Toplanan sandıklar " .. cfg.respawnWait .. " saniye boyunca hatirlanacak.")
+print("BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI UNUT) YUKLENDI!")
+print("📦 Toplanan sandıklar 30 saniye boyunca hatirlanmayacak.")
