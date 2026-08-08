@@ -1,4 +1,3 @@
--- BLOX FRUITS AUTO CHEST (TÜM DENİZLER - DOKUN YETER)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -80,8 +79,6 @@ local function goToChest(targetPos)
     hum.Sit = false
     
     local flyTarget = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
-    
-    -- Doğrudan ışınlan (çok hızlı)
     hrp.CFrame = CFrame.new(flyTarget)
     wait(0.1)
     
@@ -116,7 +113,7 @@ local function createPanel()
     Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(1, 0)
     resetBtn.Activated:Connect(function()
         collectedChests = {}
-        print("🔄 Hatırlanan sandıklar temizlendi!")
+        print("Hatırlanan sandıklar temizlendi!")
     end)
     
     btn.Activated:Connect(function()
@@ -146,14 +143,12 @@ local function mainLoop()
         return
     end
     
-    -- Sandık bul
     local chest = getBestChest()
     if not chest then
         wait(1)
         return
     end
     
-    -- Sandığa git
     local success = goToChest(chest.position)
     if not success then
         collectedChests[chest.id] = true
@@ -161,10 +156,7 @@ local function mainLoop()
         return
     end
     
-    -- Sandığı toplanmış işaretle (dokun yeter)
     collectedChests[chest.id] = true
-    print("✅ " .. chest.name .. " toplandı!")
-    
     wait(0.2)
 end
 
