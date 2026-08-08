@@ -1,3 +1,4 @@
+-- BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI HATIRLA + BEKLE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -5,8 +6,8 @@ local Camera = workspace.CurrentCamera
 
 local chestFarmEnabled = false
 local chestESP = {}
-local currentTarget = nil
-local isNearChest = false
+local collectedChests = {} -- Toplanan sandıkları hatırla
+local chestCooldown = {} -- Sandık yenilenme süresi
 
 local cfg = {
     flySpeed = 120,
@@ -14,6 +15,7 @@ local cfg = {
     prioritizeValue = false,
     checkInterval = 0.15,
     rotationSpeed = 1.5,
+    respawnWait = 10, -- Sandık yenilenene kadar bekleme süresi
 }
 
 local CHEST_VALUES = {
@@ -60,6 +62,20 @@ local function enableWalkOnWater()
     end)
 end
 
+local function isChestAvailable(chestObj)
+    if not chestObj or not chestObj.Parent then return false end
+    -- Sandık hala varsa ve toplanmamışsa
+    if collectedChests[chestObj] then
+        local lastCollect = collectedChests[chestObj]
+        if tick() - lastCollect < cfg.respawnWait then
+            return false -- Hala bekleme süresinde
+        else
+            collectedChests[chestObj] = nil -- Süre doldu, tekrar toplanabilir
+        end
+    end
+    return true
+end
+
 local function findChests()
     local chests = {}
     local myPos = getHumanoidRootPart()
@@ -69,6 +85,11 @@ local function findChests()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
+                -- Sandık mevcut ve toplanabilir mi?
+                if not isChestAvailable(obj) then
+                    continue
+                end
+                
                 local value = 0
                 if name:find("diamond") then
                     value = CHEST_VALUES.Diamond
@@ -199,6 +220,8 @@ local function interactWithChest(chest)
     if click then
         fireclickdetector(click)
         wait(0.2)
+        -- Sandığı toplanmış olarak işaretle
+        collectedChests[chest.object] = tick()
         return true
     end
     
@@ -206,12 +229,14 @@ local function interactWithChest(chest)
     if prompt then
         prompt:Activate()
         wait(0.2)
+        collectedChests[chest.object] = tick()
         return true
     end
     
     if chest.object:IsA("Tool") then
         chest.object.Parent = LocalPlayer.Character
         wait(0.1)
+        collectedChests[chest.object] = tick()
         return true
     end
     
@@ -234,6 +259,10 @@ local function createChestESP()
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
+                -- Sadece toplanabilir sandıkları göster
+                if not isChestAvailable(obj) then
+                    continue
+                end
                 local pos = obj.Position
                 if pos == pos then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -278,6 +307,8 @@ local function createPanel()
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
             enableWalkOnWater()
+            -- Eski sandık listesini temizle
+            collectedChests = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
@@ -320,7 +351,7 @@ local function mainLoop()
     
     local grabbed = interactWithChest(chest)
     if grabbed then
-        print("✅ " .. chest.name .. " toplandı!")
+        print("✅ " .. chest.name .. " toplandı! " .. cfg.respawnWait .. " saniye bekleniyor...")
     else
         print("⚠️ " .. chest.name .. " toplanamadı!")
     end
@@ -354,4 +385,5 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST YUKLENDI!")
+print("BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI HATIRLA) YUKLENDI!")
+print("📦 Toplanan sandıklar " .. cfg.respawnWait .. " saniye boyunca hatirlanacak.")
