@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (GELİŞMİŞ - SORUNSUZ UÇUŞ)
+-- BLOX FRUITS AUTO CHEST (SON - SORUNLU ADALARI ENGELLE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -7,11 +7,27 @@ local Camera = workspace.CurrentCamera
 local chestFarmEnabled = false
 local chestESP = {}
 local collectedChests = {}
-local isFlying = false
+
+-- SORUNLU ADALARIN KOORDİNATLARI (GİDİLMEYECEK)
+local blockedAreas = {
+    -- Sualtı Şehri (Underwater City) - 1. Deniz
+    {x = -2000, z = -2000, range = 500}, -- Yaklaşık konum
+    -- Jean-Luc Adası (sadece 1 sandık, ulaşımı zor)
+    -- Diğer sorunlu adalar eklenebilir
+}
+
+local function isPositionBlocked(pos)
+    for _, area in ipairs(blockedAreas) do
+        if math.abs(pos.X - area.x) < area.range and math.abs(pos.Z - area.z) < area.range then
+            return true
+        end
+    end
+    return false
+end
 
 local cfg = {
     flySpeed = 180,
-    flyHeight = 60,
+    flyHeight = 55,
     prioritizeValue = false,
     checkInterval = 0.15,
 }
@@ -96,13 +112,20 @@ local function findChests()
             if name:find("chest") or name:find("crate") then
                 if not isChestValid(obj) then continue end
                 
+                -- SORUNLU ADA KONTROLÜ
+                local pos = obj.Position
+                if isPositionBlocked(pos) then
+                    -- Bu sandığı atla (toplanmış gibi işaretle)
+                    collectedChests[tostring(obj)] = true
+                    continue
+                end
+                
                 local value = 0
                 if name:find("diamond") then value = CHEST_VALUES.Diamond
                 elseif name:find("golden") or name:find("gold") then value = CHEST_VALUES.Golden
                 elseif name:find("silver") then value = CHEST_VALUES.Silver
                 else value = CHEST_VALUES.Silver end
                 
-                local pos = obj.Position
                 if pos == pos then
                     local dist = (myPos.Position - pos).Magnitude
                     table.insert(chests, {
@@ -132,21 +155,16 @@ local function flyTo(targetPos)
     local hum = getHumanoid()
     if not hrp or not hum then return false end
     
-    -- Uçuş modu
-    enableFly()
-    setNoclip(true)
-    isFlying = true
-    
-    -- Yüksekten uç (denizden uzak)
-    local flyTarget = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
-    
-    -- Eğer suyun içindeyse direkt yukarı çık
+    -- Suyun içindeyse yukarı çık
     if hrp.Position.Y < 5 then
         hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
         wait(0.05)
     end
     
-    -- Mesafe
+    enableFly()
+    setNoclip(true)
+    
+    local flyTarget = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
     local distance = (flyTarget - hrp.Position).Magnitude
     
     -- Işınlanma (uzak mesafe)
@@ -155,13 +173,13 @@ local function flyTo(targetPos)
         for i = 1, steps do
             if not chestFarmEnabled then return false end
             local stepPos = hrp.Position + (flyTarget - hrp.Position).Unit * 100
-            stepPos = Vector3.new(stepPos.X, math.max(stepPos.Y, 30), stepPos.Z)
+            stepPos = Vector3.new(stepPos.X, math.max(stepPos.Y, 25), stepPos.Z)
             hrp.CFrame = CFrame.new(stepPos)
             wait(0.02)
         end
     end
     
-    -- Hızlı uçuş
+    -- Uçuş
     local dir = (flyTarget - hrp.Position).Unit
     local attempts = 0
     local currentDist = (flyTarget - hrp.Position).Magnitude
@@ -173,7 +191,6 @@ local function flyTo(targetPos)
         local currentPos = hrp.Position
         currentDist = (flyTarget - currentPos).Magnitude
         
-        -- Yükseklik kontrolü (denize düşme)
         if currentPos.Y < 10 then
             hrp.CFrame = CFrame.new(currentPos + Vector3.new(0, 20, 0))
             wait(0.02)
@@ -187,10 +204,7 @@ local function flyTo(targetPos)
         wait(0.01)
     end
     
-    -- Sandığa yaklaş (noclip kapat)
     setNoclip(false)
-    isFlying = false
-    
     local landPos = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
     hrp.CFrame = CFrame.new(landPos)
     wait(0.05)
@@ -247,6 +261,10 @@ local function createChestESP()
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
                 if not isChestValid(obj) then continue end
+                if isPositionBlocked(obj.Position) then
+                    collectedChests[tostring(obj)] = true
+                    continue
+                end
                 local pos = obj.Position
                 if pos == pos then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
@@ -310,7 +328,6 @@ local function createPanel()
             btn.Text = "BAŞLAT"
             setNoclip(false)
             disableFly()
-            isFlying = false
             local hum = getHumanoid()
             if hum then
                 hum.PlatformStand = false
@@ -332,7 +349,6 @@ local function mainLoop()
         return
     end
     
-    -- Suyun içindeyse yukarı çık
     if hrp.Position.Y < 2 then
         hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
         wait(0.05)
@@ -384,5 +400,5 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (GELİSMIS UCUS) YUKLENDI!")
-print("📦 Sorunsuz uçuş, denizden kaçınma, noclip aktif.")
+print("BLOX FRUITS AUTO CHEST (SORUNLU ADALAR ENGELLENDI) YUKLENDI!")
+print("🚫 Sualti Sehri ve Jean-Luc Adasi sandiklari otomatik atlaniyor.")
