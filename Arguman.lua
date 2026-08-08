@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI TAMAMEN UNUT)
+-- BLOX FRUITS AUTO CHEST (HIZLI + SANDIKLARI TAMAMEN UNUT)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -7,14 +7,13 @@ local Camera = workspace.CurrentCamera
 local chestFarmEnabled = false
 local chestESP = {}
 local collectedChests = {} -- Toplanan sandıkların ID'si
-local ignoredChests = {} -- Şu anlık görmezden gelinen sandıklar
 
 local cfg = {
-    flySpeed = 120,
-    flyHeight = 35,
+    flySpeed = 200,
+    flyHeight = 45,
     prioritizeValue = false,
-    checkInterval = 0.15,
-    rotationSpeed = 1.5,
+    checkInterval = 0.1,
+    rotationSpeed = 2,
 }
 
 local CHEST_VALUES = {
@@ -65,7 +64,6 @@ local function isChestValid(chestObj)
     if not chestObj or not chestObj.Parent then return false end
     local id = tostring(chestObj)
     if collectedChests[id] then return false end
-    if ignoredChests[id] then return false end
     return true
 end
 
@@ -115,11 +113,8 @@ local function getBestChest()
     local chests = findChests()
     if #chests == 0 then return nil end
     
-    if cfg.prioritizeValue then
-        table.sort(chests, function(a, b) return a.value > b.value end)
-    else
-        table.sort(chests, function(a, b) return a.distance < b.distance end)
-    end
+    -- En yakın sandığı bul (hızlı toplama için)
+    table.sort(chests, function(a, b) return a.distance < b.distance end)
     return chests[1]
 end
 
@@ -129,71 +124,48 @@ local function flyTo(targetPos)
     if not hrp or not hum then return false end
     
     enableWalkOnWater()
-    
-    local distance = (targetPos - hrp.Position).Magnitude
-    
-    if distance < 15 then
-        setNoclip(false)
-        local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
-        hrp.CFrame = CFrame.new(targetPosGround)
-        wait(0.1)
-        return true
-    end
-    
     setNoclip(true)
     
     hum.PlatformStand = true
     hum.Sit = false
     
     local targetWithHeight = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
-    local dir = (targetWithHeight - hrp.Position).Unit
-    local speed = cfg.flySpeed
+    local distance = (targetWithHeight - hrp.Position).Magnitude
     
-    if distance > 100 then
-        local steps = math.min(math.floor(distance / 60), 4)
+    -- DOĞRUDAN IŞINLAN (hızlı)
+    if distance > 50 then
+        local steps = math.min(math.floor(distance / 80), 3)
         for i = 1, steps do
             if not chestFarmEnabled then return false end
-            local stepPos = hrp.Position + dir * 60
+            local stepPos = hrp.Position + (targetWithHeight - hrp.Position).Unit * 80
             hrp.CFrame = CFrame.new(stepPos)
-            wait(0.02)
+            wait(0.01)
         end
     end
     
+    -- Hızlı uçuş
+    local dir = (targetWithHeight - hrp.Position).Unit
     local attempts = 0
     local currentDist = (targetWithHeight - hrp.Position).Magnitude
-    while currentDist > 10 and attempts < 40 do
+    while currentDist > 5 and attempts < 30 do
         if not chestFarmEnabled then return false end
         if not getCharacter() then return false end
         
         local currentPos = hrp.Position
         currentDist = (targetWithHeight - currentPos).Magnitude
-        local newPos = currentPos + dir * speed * 0.12
+        local newPos = currentPos + dir * cfg.flySpeed * 0.1
         hrp.CFrame = CFrame.new(newPos)
         
         attempts = attempts + 1
-        wait(0.02)
+        wait(0.01)
     end
     
+    -- Sandığa yaklaş (noclip kapat)
     setNoclip(false)
-    
-    local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2.5, targetPos.Z)
+    local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
     hrp.CFrame = CFrame.new(targetPosGround)
-    wait(0.1)
+    wait(0.05)
     return true
-end
-
-local function autoRotate()
-    local hrp = getHumanoidRootPart()
-    if not hrp then return end
-    
-    local hum = getHumanoid()
-    if hum then
-        hum.AutoRotate = true
-    end
-    
-    local currentCF = hrp.CFrame
-    local newCF = currentCF * CFrame.Angles(0, math.rad(cfg.rotationSpeed), 0)
-    hrp.CFrame = newCF
 end
 
 local function interactWithChest(chest)
@@ -202,40 +174,34 @@ local function interactWithChest(chest)
     local hrp = getHumanoidRootPart()
     if not hrp then return false end
     
-    local chestPos = chest.position
-    hrp.CFrame = CFrame.new(chestPos + Vector3.new(0, 1.5, 0))
-    wait(0.15)
+    hrp.CFrame = CFrame.new(chest.position + Vector3.new(0, 1.5, 0))
+    wait(0.1)
     
     local success = false
+    
+    -- ClickDetector
     local click = chest.object:FindFirstChildOfClass("ClickDetector")
     if click then
         fireclickdetector(click)
         success = true
     end
     
+    -- ProximityPrompt
     local prompt = chest.object:FindFirstChildOfClass("ProximityPrompt")
     if prompt then
         prompt:Activate()
         success = true
     end
     
+    -- Tool
     if chest.object:IsA("Tool") then
         chest.object.Parent = LocalPlayer.Character
         success = true
     end
     
     if success then
-        -- Sandığı toplanmış olarak işaretle (hemen unut)
         local id = chest.id or tostring(chest.object)
         collectedChests[id] = true
-        ignoredChests[id] = true
-        
-        -- 30 saniye sonra tekrar hatırlamaya başla (yenilenme süresi)
-        task.spawn(function()
-            wait(30)
-            ignoredChests[id] = nil
-        end)
-        
         return true
     end
     
@@ -254,7 +220,7 @@ local function createChestESP()
     
     local count = 0
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if count > 25 then break end
+        if count > 30 then break end
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
@@ -290,7 +256,7 @@ local function createPanel()
     gui.ResetOnSpawn = false
     
     local btn = Instance.new("TextButton", gui)
-    btn.Size = UDim2.new(0, 110, 0, 50)
+    btn.Size = UDim2.new(0, 120, 0, 50)
     btn.Position = UDim2.new(0, 10, 0.85, 0)
     btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     btn.Text = "BAŞLAT"
@@ -299,6 +265,21 @@ local function createPanel()
     btn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
+    -- Reset butonu
+    local resetBtn = Instance.new("TextButton", gui)
+    resetBtn.Size = UDim2.new(0, 50, 0, 50)
+    resetBtn.Position = UDim2.new(0.12, 0, 0.85, 0)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
+    resetBtn.Text = "↺"
+    resetBtn.TextColor3 = Color3.new(1, 1, 1)
+    resetBtn.TextSize = 20
+    resetBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(1, 0)
+    resetBtn.Activated:Connect(function()
+        collectedChests = {}
+        print("🔄 Hatırlanan sandıklar temizlendi!")
+    end)
+    
     btn.Activated:Connect(function()
         chestFarmEnabled = not chestFarmEnabled
         if chestFarmEnabled then
@@ -306,7 +287,6 @@ local function createPanel()
             btn.Text = "DURDUR"
             enableWalkOnWater()
             collectedChests = {}
-            ignoredChests = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
@@ -315,10 +295,8 @@ local function createPanel()
             if hum then 
                 hum.PlatformStand = false
                 hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-                hum.AutoRotate = true
             end
             collectedChests = {}
-            ignoredChests = {}
         end
     end)
     
@@ -330,44 +308,45 @@ local function mainLoop()
     
     local hrp = getHumanoidRootPart()
     if not hrp then
-        wait(1)
+        wait(0.5)
         return
+    end
+    
+    -- Eğer denizdeyse yukarı çık
+    if hrp.Position.Y < 0 then
+        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 20, 0))
+        wait(0.1)
     end
     
     local chest = getBestChest()
     if not chest then
-        autoRotate()
-        wait(0.5)
+        wait(0.3)
         return
     end
     
     local success = flyTo(chest.position)
     if not success then
-        wait(0.3)
+        wait(0.2)
         return
     end
     
     local grabbed = interactWithChest(chest)
     if grabbed then
-        print("✅ " .. chest.name .. " toplandı! Yeni sandık aranıyor...")
+        print("✅ " .. chest.name .. " toplandı!")
     else
-        print("⚠️ " .. chest.name .. " toplanamadı! Atlanıyor...")
-        -- Toplanamadıysa da unut (takılı kalmasın)
+        -- Toplanamadıysa da unut (takılmasın)
         local id = chest.id or tostring(chest.object)
-        ignoredChests[id] = true
-        task.spawn(function()
-            wait(10)
-            ignoredChests[id] = nil
-        end)
+        collectedChests[id] = true
+        print("⚠️ " .. chest.name .. " atlandı!")
     end
     
-    wait(0.2)
+    wait(0.1)
 end
 
 createPanel()
 
 task.spawn(function()
-    while wait(0.5) do
+    while wait(0.3) do
         pcall(function()
             if chestFarmEnabled then
                 createChestESP()
@@ -390,5 +369,6 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (TOPLANAN SANDIKLARI UNUT) YUKLENDI!")
-print("📦 Toplanan sandıklar 30 saniye boyunca hatirlanmayacak.")
+print("BLOX FRUITS AUTO CHEST (HIZLI + SANDIKLARI UNUT) YUKLENDI!")
+print("📦 Toplanan sandıklar tamamen unutulur.")
+print("🔄 '↺' butonu ile hatırlanan sandıkları temizle.")
