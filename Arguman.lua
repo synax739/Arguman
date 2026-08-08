@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (SADELEŞTİRİLMİŞ - SORUNSUZ ÇALIŞAN)
+-- BLOX FRUITS AUTO CHEST (SON - SORUNSUZ ÇALIŞAN)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -6,11 +6,13 @@ local Camera = workspace.CurrentCamera
 
 local chestFarmEnabled = false
 local collectedChests = {}
+local currentTarget = nil
+local stuckCounter = 0
 
 local cfg = {
     flySpeed = 200,
     flyHeight = 60,
-    checkInterval = 0.1,
+    checkInterval = 0.15,
 }
 
 local function getCharacter()
@@ -82,37 +84,38 @@ local function flyTo(targetPos)
     local hum = getHumanoid()
     if not hrp or not hum then return false end
     
-    -- NOCLIP AÇ
     setNoclip(true)
-    
-    -- UÇUŞ MODU
     hum.PlatformStand = true
     hum.Sit = false
     
-    -- YÜKSEKTE UÇ (denizden uzak)
     local flyTarget = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
+    local distance = (flyTarget - hrp.Position).Magnitude
     
-    -- DOĞRUDAN IŞINLA (ilk adım)
-    if (flyTarget - hrp.Position).Magnitude > 100 then
-        hrp.CFrame = CFrame.new(flyTarget - Vector3.new(0, 20, 0))
-        wait(0.05)
+    -- Uzun mesafe: ışınlan
+    if distance > 150 then
+        local steps = math.min(math.floor(distance / 120), 4)
+        for i = 1, steps do
+            if not chestFarmEnabled then return false end
+            local stepPos = hrp.Position + (flyTarget - hrp.Position).Unit * 120
+            hrp.CFrame = CFrame.new(stepPos)
+            wait(0.02)
+        end
     end
     
-    -- HIZLI UÇUŞ (son yaklaşma)
+    -- Yaklaşma uçuşu
     local dir = (flyTarget - hrp.Position).Unit
     local attempts = 0
     local currentDist = (flyTarget - hrp.Position).Magnitude
     
-    while currentDist > 5 and attempts < 30 do
+    while currentDist > 5 and attempts < 40 do
         if not chestFarmEnabled then return false end
-        local newPos = hrp.Position + dir * cfg.flySpeed * 0.08
+        local newPos = hrp.Position + dir * cfg.flySpeed * 0.1
         hrp.CFrame = CFrame.new(newPos)
         currentDist = (flyTarget - hrp.Position).Magnitude
         attempts = attempts + 1
-        wait(0.01)
+        wait(0.015)
     end
     
-    -- NOCLIP KAPAT ve SANDIĞA İN
     setNoclip(false)
     local landPos = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
     hrp.CFrame = CFrame.new(landPos)
@@ -129,7 +132,7 @@ local function interactWithChest(chest)
     if not hrp then return false end
     
     hrp.CFrame = CFrame.new(chest.position + Vector3.new(0, 1.5, 0))
-    wait(0.1)
+    wait(0.15)
     
     local click = chest.object:FindFirstChildOfClass("ClickDetector")
     if click then
@@ -154,34 +157,61 @@ local function interactWithChest(chest)
     return false
 end
 
+local function resetPosition()
+    local hrp = getHumanoidRootPart()
+    if not hrp then return end
+    local pos = hrp.Position
+    if pos.Y < 10 or pos.Y > 200 then
+        hrp.CFrame = CFrame.new(pos.X, 50, pos.Z)
+        wait(0.1)
+    end
+end
+
 local function createPanel()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AutoChest"
     gui.ResetOnSpawn = false
     
-    local btn = Instance.new("TextButton", gui)
-    btn.Size = UDim2.new(0, 120, 0, 50)
-    btn.Position = UDim2.new(0, 10, 0.85, 0)
+    local mainFrame = Instance.new("Frame", gui)
+    mainFrame.Size = UDim2.new(0, 150, 0, 100)
+    mainFrame.Position = UDim2.new(0, 10, 0.8, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    mainFrame.BackgroundTransparency = 0.3
+    mainFrame.BorderSizePixel = 0
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+    
+    local btn = Instance.new("TextButton", mainFrame)
+    btn.Size = UDim2.new(0, 130, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, 5)
     btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     btn.Text = "BAŞLAT"
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.TextSize = 16
     btn.Font = Enum.Font.SourceSansBold
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
-    local resetBtn = Instance.new("TextButton", gui)
-    resetBtn.Size = UDim2.new(0, 50, 0, 50)
-    resetBtn.Position = UDim2.new(0.13, 0, 0.85, 0)
+    local resetBtn = Instance.new("TextButton", mainFrame)
+    resetBtn.Size = UDim2.new(0, 60, 0, 30)
+    resetBtn.Position = UDim2.new(0, 10, 0, 55)
     resetBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
-    resetBtn.Text = "↺"
+    resetBtn.Text = "↺ SIFIRLA"
     resetBtn.TextColor3 = Color3.new(1, 1, 1)
-    resetBtn.TextSize = 20
+    resetBtn.TextSize = 12
     resetBtn.Font = Enum.Font.SourceSansBold
-    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(1, 0)
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
     resetBtn.Activated:Connect(function()
         collectedChests = {}
         print("🔄 Hatırlanan sandıklar temizlendi!")
     end)
+    
+    local statusText = Instance.new("TextLabel", mainFrame)
+    statusText.Size = UDim2.new(0, 60, 0, 30)
+    statusText.Position = UDim2.new(0, 80, 0, 55)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "⏹"
+    statusText.TextColor3 = Color3.fromRGB(255, 50, 50)
+    statusText.TextSize = 20
+    statusText.Font = Enum.Font.SourceSansBold
     
     btn.Activated:Connect(function()
         chestFarmEnabled = not chestFarmEnabled
@@ -189,12 +219,16 @@ local function createPanel()
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
             collectedChests = {}
+            statusText.Text = "▶"
+            statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
             setNoclip(false)
             local hum = getHumanoid()
             if hum then hum.PlatformStand = false end
+            statusText.Text = "⏹"
+            statusText.TextColor3 = Color3.fromRGB(255, 50, 50)
         end
     end)
     
@@ -210,25 +244,23 @@ local function mainLoop()
         return
     end
     
-    -- Denizdeyse yukarı çık
-    if hrp.Position.Y < 0 then
-        hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
-        wait(0.05)
-    end
+    -- Konum düzeltme
+    resetPosition()
     
     local chest = getBestChest()
     if not chest then
-        wait(0.5)
+        wait(1)
         return
     end
     
-    -- Çok uzaktaki sandıkları atla (3. Deniz'de bazen çok uzak oluyor)
-    if chest.distance > 2000 then
+    -- Çok uzaktaki sandıkları atla
+    if chest.distance > 3000 then
         collectedChests[chest.id] = true
         wait(0.2)
         return
     end
     
+    currentTarget = chest
     local success = flyTo(chest.position)
     if not success then
         collectedChests[chest.id] = true
@@ -239,6 +271,8 @@ local function mainLoop()
     local grabbed = interactWithChest(chest)
     if not grabbed then
         collectedChests[chest.id] = true
+    else
+        print("✅ " .. chest.name .. " toplandı! Kalan: " .. #findChests())
     end
     
     wait(0.1)
@@ -252,4 +286,4 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (SADE) YUKLENDI!")
+print("BLOX FRUITS AUTO CHEST (SON) YUKLENDI!")
