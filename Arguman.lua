@@ -1,4 +1,4 @@
--- BLOX FRUITS AUTO CHEST (OPTİMİZE - HIZLI UÇUŞ + NOCLIP)
+-- BLOX FRUITS AUTO CHEST (DÜZELTİLMİŞ - YÜKSEKTEN UÇUŞ + SANDIK ALMA)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -12,6 +12,7 @@ local cfg = {
     noclip = true,
     prioritizeValue = true,
     checkInterval = 0.15,
+    flyHeight = 15, -- Yükseklik (denizden uzak)
 }
 
 local CHEST_VALUES = {
@@ -84,13 +85,12 @@ local function getBestChest()
     end
 end
 
--- HIZLI UÇUŞ + NOCLIP (OPTİMİZE)
 local function flyTo(targetPos)
     local hrp = getHumanoidRootPart()
     local hum = getHumanoid()
     if not hrp or not hum then return false end
     
-    -- NOCLIP (TÜM PARÇALAR)
+    -- NOCLIP
     if cfg.noclip then
         local char = getCharacter()
         if char then
@@ -99,7 +99,6 @@ local function flyTo(targetPos)
                     part.CanCollide = false
                 end
             end
-            -- Karakterin tüm uzuvlarını da noclip yap
             for _, v in ipairs(char:GetChildren()) do
                 if v:IsA("BasePart") then
                     v.CanCollide = false
@@ -112,13 +111,14 @@ local function flyTo(targetPos)
     hum.PlatformStand = true
     hum.Sit = false
     
-    local distance = (targetPos - hrp.Position).Magnitude
-    local dir = (targetPos - hrp.Position).Unit
+    -- Yüksekten uç (deniz seviyesinden yukarıda)
+    local targetWithHeight = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
+    local distance = (targetWithHeight - hrp.Position).Magnitude
+    local dir = (targetWithHeight - hrp.Position).Unit
     local speed = cfg.flySpeed
     
-    -- Hızlı uçuş (doğrudan ışınlanma + uçuş karışımı)
+    -- Uzak mesafe: ışınlan + uç
     if distance > 100 then
-        -- Uzak mesafede ışınlan + uç
         local steps = math.min(math.floor(distance / 50), 5)
         for i = 1, steps do
             if not chestFarmEnabled then return false end
@@ -128,14 +128,14 @@ local function flyTo(targetPos)
         end
     end
     
-    -- Son yaklaşma (uçarak)
+    -- Son yaklaşma (yüksekten)
     local attempts = 0
     while distance > 5 and attempts < 50 do
         if not chestFarmEnabled then return false end
         if not getCharacter() then return false end
         
         local currentPos = hrp.Position
-        distance = (targetPos - currentPos).Magnitude
+        distance = (targetWithHeight - currentPos).Magnitude
         local newPos = currentPos + dir * speed * 0.15
         hrp.CFrame = CFrame.new(newPos)
         
@@ -143,8 +143,9 @@ local function flyTo(targetPos)
         wait(0.02)
     end
     
-    -- Hedefe ulaş
-    hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))
+    -- Sandığın üzerine in (yavaşça)
+    local targetPosGround = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
+    hrp.CFrame = CFrame.new(targetPosGround)
     wait(0.1)
     return true
 end
@@ -155,7 +156,9 @@ local function interactWithChest(chest)
     local hrp = getHumanoidRootPart()
     if not hrp then return false end
     
-    hrp.CFrame = CFrame.new(chest.position + Vector3.new(0, 2, 0))
+    -- Sandığın yanına ışınlan
+    local chestPos = chest.position
+    hrp.CFrame = CFrame.new(chestPos + Vector3.new(0, 2, 0))
     wait(0.15)
     
     -- ClickDetector
@@ -184,7 +187,7 @@ local function interactWithChest(chest)
     return false
 end
 
--- ESP (Sadece aktifken çalışsın, performans için)
+-- ESP
 local function createChestESP()
     for _, obj in pairs(chestESP) do
         pcall(function() 
@@ -201,7 +204,7 @@ local function createChestESP()
     
     local count = 0
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if count > 30 then break end -- Maksimum 30 sandık göster (performans)
+        if count > 30 then break end
         if obj:IsA("BasePart") and obj.Name then
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
@@ -252,7 +255,6 @@ local function createPanel()
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BAŞLAT"
-            -- Noclip'i kapat
             local char = getCharacter()
             if char then
                 for _, part in ipairs(char:GetDescendants()) do
@@ -274,7 +276,7 @@ local function createPanel()
     return gui
 end
 
--- ANA DÖNGÜ (OPTİMİZE)
+-- ANA DÖNGÜ
 local function mainLoop()
     if not chestFarmEnabled then return end
     
@@ -303,7 +305,6 @@ end
 -- BAŞLAT
 createPanel()
 
--- ESP güncelleme (daha az sıklıkta)
 task.spawn(function()
     while wait(0.5) do
         pcall(function()
@@ -321,12 +322,11 @@ task.spawn(function()
     end
 end)
 
--- Ana döngü
 task.spawn(function()
     while wait(cfg.checkInterval) do
         pcall(mainLoop)
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (OPTIMIZE) YUKLENDI!")
-print("HIZLI UCUS + NOCLIP AKTIF!")
+print("BLOX FRUITS AUTO CHEST (DÜZELTİLMİŞ) YUKLENDI!")
+print("YUKSEKTEN UCUS + NOCLIP AKTIF!")
