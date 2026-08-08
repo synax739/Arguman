@@ -8,23 +8,6 @@ local chestFarmEnabled = false
 local chestESP = {}
 local collectedChests = {}
 
--- SORUNLU ADALARIN KOORDİNATLARI (GİDİLMEYECEK)
-local blockedAreas = {
-    -- Sualtı Şehri (Underwater City) - 1. Deniz
-    {x = -2000, z = -2000, range = 500}, -- Yaklaşık konum
-    -- Jean-Luc Adası (sadece 1 sandık, ulaşımı zor)
-    -- Diğer sorunlu adalar eklenebilir
-}
-
-local function isPositionBlocked(pos)
-    for _, area in ipairs(blockedAreas) do
-        if math.abs(pos.X - area.x) < area.range and math.abs(pos.Z - area.z) < area.range then
-            return true
-        end
-    end
-    return false
-end
-
 local cfg = {
     flySpeed = 180,
     flyHeight = 55,
@@ -112,21 +95,25 @@ local function findChests()
             if name:find("chest") or name:find("crate") then
                 if not isChestValid(obj) then continue end
                 
-                -- SORUNLU ADA KONTROLÜ
                 local pos = obj.Position
-                if isPositionBlocked(pos) then
-                    -- Bu sandığı atla (toplanmış gibi işaretle)
-                    collectedChests[tostring(obj)] = true
-                    continue
-                end
-                
-                local value = 0
-                if name:find("diamond") then value = CHEST_VALUES.Diamond
-                elseif name:find("golden") or name:find("gold") then value = CHEST_VALUES.Golden
-                elseif name:find("silver") then value = CHEST_VALUES.Silver
-                else value = CHEST_VALUES.Silver end
-                
                 if pos == pos then
+                    -- Sualtı Şehri kontrolü (koordinat yaklaşık)
+                    if math.abs(pos.X) > 1500 and math.abs(pos.Z) > 1500 then
+                        collectedChests[tostring(obj)] = true
+                        continue
+                    end
+                    
+                    local value = 0
+                    if name:find("diamond") then
+                        value = CHEST_VALUES.Diamond
+                    elseif name:find("golden") or name:find("gold") then
+                        value = CHEST_VALUES.Golden
+                    elseif name:find("silver") then
+                        value = CHEST_VALUES.Silver
+                    else
+                        value = CHEST_VALUES.Silver
+                    end
+                    
                     local dist = (myPos.Position - pos).Magnitude
                     table.insert(chests, {
                         object = obj,
@@ -155,7 +142,6 @@ local function flyTo(targetPos)
     local hum = getHumanoid()
     if not hrp or not hum then return false end
     
-    -- Suyun içindeyse yukarı çık
     if hrp.Position.Y < 5 then
         hrp.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 30, 0))
         wait(0.05)
@@ -167,7 +153,6 @@ local function flyTo(targetPos)
     local flyTarget = Vector3.new(targetPos.X, targetPos.Y + cfg.flyHeight, targetPos.Z)
     local distance = (flyTarget - hrp.Position).Magnitude
     
-    -- Işınlanma (uzak mesafe)
     if distance > 80 then
         local steps = math.min(math.floor(distance / 100), 3)
         for i = 1, steps do
@@ -179,7 +164,6 @@ local function flyTo(targetPos)
         end
     end
     
-    -- Uçuş
     local dir = (flyTarget - hrp.Position).Unit
     local attempts = 0
     local currentDist = (flyTarget - hrp.Position).Magnitude
@@ -261,11 +245,11 @@ local function createChestESP()
             local name = obj.Name:lower()
             if name:find("chest") or name:find("crate") then
                 if not isChestValid(obj) then continue end
-                if isPositionBlocked(obj.Position) then
+                local pos = obj.Position
+                if math.abs(pos.X) > 1500 and math.abs(pos.Z) > 1500 then
                     collectedChests[tostring(obj)] = true
                     continue
                 end
-                local pos = obj.Position
                 if pos == pos then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
                     if onScreen then
@@ -400,5 +384,4 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST (SORUNLU ADALAR ENGELLENDI) YUKLENDI!")
-print("🚫 Sualti Sehri ve Jean-Luc Adasi sandiklari otomatik atlaniyor.")
+print("BLOX FRUITS AUTO CHEST YUKLENDI!")
