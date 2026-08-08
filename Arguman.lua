@@ -1,119 +1,138 @@
+-- BLOX FRUITS AUTO CHEST (SON - SADECE CALISAN)
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local chestFarmEnabled = false
-local collectedChests = {}
+local toplananSandiklar = {}
 
-local function getCharacter()
+local function karakter()
     return LocalPlayer.Character
 end
 
-local function getHumanoid()
-    local char = getCharacter()
-    return char and char:FindFirstChildOfClass("Humanoid")
-end
-
-local function getHumanoidRootPart()
-    local char = getCharacter()
+local function hrp()
+    local char = karakter()
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
-local function setNoclip(state)
-    local char = getCharacter()
-    if not char then return end
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            pcall(function() part.CanCollide = not state end)
-        end
-    end
+local function insan()
+    local char = karakter()
+    return char and char:FindFirstChildOfClass("Humanoid")
 end
 
-local function isChestValid(chestObj)
-    if not chestObj or not chestObj.Parent then return false end
-    if collectedChests[tostring(chestObj)] then return false end
-    return true
-end
-
-local function findChests()
-    local chests = {}
-    local myPos = getHumanoidRootPart()
-    if not myPos then return chests end
+local function sandikBul()
+    local sandiklar = {}
+    local ben = hrp()
+    if not ben then return sandiklar end
     
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name then
-            local name = obj.Name:lower()
-            if name:find("chest") or name:find("crate") then
-                if not isChestValid(obj) then continue end
-                local pos = obj.Position
+    for _, nesne in ipairs(workspace:GetDescendants()) do
+        if nesne:IsA("BasePart") and nesne.Name then
+            local isim = nesne.Name:lower()
+            if isim:find("chest") or isim:find("crate") then
+                if toplananSandiklar[tostring(nesne)] then
+                    continue
+                end
+                local pos = nesne.Position
                 if pos == pos then
-                    local dist = (myPos.Position - pos).Magnitude
-                    table.insert(chests, {
-                        object = obj,
-                        id = tostring(obj),
-                        position = pos,
-                        distance = dist,
-                        name = obj.Name,
+                    local mesafe = (ben.Position - pos).Magnitude
+                    table.insert(sandiklar, {
+                        nesne = nesne,
+                        id = tostring(nesne),
+                        konum = pos,
+                        mesafe = mesafe,
+                        isim = nesne.Name,
                     })
                 end
             end
         end
     end
-    return chests
+    return sandiklar
 end
 
-local function getBestChest()
-    local chests = findChests()
-    if #chests == 0 then return nil end
-    table.sort(chests, function(a, b) return a.distance < b.distance end)
-    return chests[1]
+local function enYakinSandik()
+    local sandiklar = sandikBul()
+    if #sandiklar == 0 then return nil end
+    table.sort(sandiklar, function(a, b) return a.mesafe < b.mesafe end)
+    return sandiklar[1]
 end
 
-local function goToChest(targetPos)
-    local hrp = getHumanoidRootPart()
-    local hum = getHumanoid()
-    if not hrp or not hum then return false end
+local function noclipAc()
+    local char = karakter()
+    if not char then return end
+    for _, parca in ipairs(char:GetDescendants()) do
+        if parca:IsA("BasePart") then
+            pcall(function() parca.CanCollide = false end)
+        end
+    end
+end
+
+local function noclipKapat()
+    local char = karakter()
+    if not char then return end
+    for _, parca in ipairs(char:GetDescendants()) do
+        if parca:IsA("BasePart") then
+            pcall(function() parca.CanCollide = true end)
+        end
+    end
+end
+
+local function sandigaGit(hedef)
+    local ben = hrp()
+    local can = insan()
+    if not ben or not can then return false end
     
-    setNoclip(true)
-    hum.PlatformStand = true
-    hum.Sit = false
+    noclipAc()
+    can.PlatformStand = true
+    can.Sit = false
     
-    local flyTarget = Vector3.new(targetPos.X, targetPos.Y + 2, targetPos.Z)
-    hrp.CFrame = CFrame.new(flyTarget)
-    wait(0.1)
+    local ucusNoktasi = Vector3.new(hedef.X, hedef.Y + 2, hedef.Z)
+    ben.CFrame = CFrame.new(ucusNoktasi)
+    wait(0.05)
     
-    setNoclip(false)
-    hum.PlatformStand = false
+    noclipKapat()
+    can.PlatformStand = false
     return true
 end
 
-local function createPanel()
+local function sandikAl(sandik)
+    if not sandik or not sandik.nesne then return false end
+    
+    local ben = hrp()
+    if not ben then return false end
+    
+    ben.CFrame = CFrame.new(sandik.konum + Vector3.new(0, 1.5, 0))
+    wait(0.1)
+    
+    toplananSandiklar[sandik.id] = true
+    return true
+end
+
+local function panelOlustur()
     local gui = Instance.new("ScreenGui", game.CoreGui)
-    gui.Name = "AutoChest"
+    gui.Name = "ChestFarm"
     gui.ResetOnSpawn = false
     
     local btn = Instance.new("TextButton", gui)
     btn.Size = UDim2.new(0, 120, 0, 50)
     btn.Position = UDim2.new(0, 10, 0.85, 0)
     btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    btn.Text = "BAŞLAT"
+    btn.Text = "BASLAT"
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.TextSize = 16
     btn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
     
-    local resetBtn = Instance.new("TextButton", gui)
-    resetBtn.Size = UDim2.new(0, 50, 0, 50)
-    resetBtn.Position = UDim2.new(0.13, 0, 0.85, 0)
-    resetBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
-    resetBtn.Text = "↺"
-    resetBtn.TextColor3 = Color3.new(1, 1, 1)
-    resetBtn.TextSize = 20
-    resetBtn.Font = Enum.Font.SourceSansBold
-    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(1, 0)
-    resetBtn.Activated:Connect(function()
-        collectedChests = {}
-        print("Hatırlanan sandıklar temizlendi!")
+    local sifirlaBtn = Instance.new("TextButton", gui)
+    sifirlaBtn.Size = UDim2.new(0, 50, 0, 50)
+    sifirlaBtn.Position = UDim2.new(0.13, 0, 0.85, 0)
+    sifirlaBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
+    sifirlaBtn.Text = "↺"
+    sifirlaBtn.TextColor3 = Color3.new(1, 1, 1)
+    sifirlaBtn.TextSize = 20
+    sifirlaBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", sifirlaBtn).CornerRadius = UDim.new(1, 0)
+    sifirlaBtn.Activated:Connect(function()
+        toplananSandiklar = {}
+        print("Temizlendi!")
     end)
     
     btn.Activated:Connect(function()
@@ -121,51 +140,50 @@ local function createPanel()
         if chestFarmEnabled then
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
-            collectedChests = {}
+            toplananSandiklar = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            btn.Text = "BAŞLAT"
-            setNoclip(false)
-            local hum = getHumanoid()
-            if hum then hum.PlatformStand = false end
+            btn.Text = "BASLAT"
+            noclipKapat()
+            local can = insan()
+            if can then can.PlatformStand = false end
         end
     end)
-    
-    return gui
 end
 
-local function mainLoop()
+local function anaDongu()
     if not chestFarmEnabled then return end
     
-    local hrp = getHumanoidRootPart()
-    if not hrp then
+    local ben = hrp()
+    if not ben then
         wait(0.5)
         return
     end
     
-    local chest = getBestChest()
-    if not chest then
-        wait(1)
+    local hedef = enYakinSandik()
+    if not hedef then
+        wait(0.5)
         return
     end
     
-    local success = goToChest(chest.position)
-    if not success then
-        collectedChests[chest.id] = true
-        wait(0.3)
+    local basarili = sandigaGit(hedef.konum)
+    if not basarili then
+        toplananSandiklar[hedef.id] = true
+        wait(0.2)
         return
     end
     
-    collectedChests[chest.id] = true
-    wait(0.2)
+    sandikAl(hedef)
+    print("✅ " .. hedef.isim .. " toplandi!")
+    wait(0.1)
 end
 
-createPanel()
+panelOlustur()
 
 task.spawn(function()
     while wait(0.15) do
-        pcall(mainLoop)
+        pcall(anaDongu)
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST YUKLENDI!")
+print("BLOX FRUITS AUTO CHEST HAZIR!")
