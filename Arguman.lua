@@ -1,9 +1,10 @@
--- BLOX FRUITS AUTO CHEST (SON - SADECE CALISAN)
+-- BLOX FRUITS AUTO CHEST (ALINAN SANDIKLARI SİL)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local chestFarmEnabled = false
-local toplananSandiklar = {}
+local alinanSandiklar = {}
+local sandikListesi = {}
 
 local function karakter()
     return LocalPlayer.Character
@@ -19,7 +20,7 @@ local function insan()
     return char and char:FindFirstChildOfClass("Humanoid")
 end
 
-local function sandikBul()
+local function sandikTara()
     local sandiklar = {}
     local ben = hrp()
     if not ben then return sandiklar end
@@ -28,7 +29,8 @@ local function sandikBul()
         if nesne:IsA("BasePart") and nesne.Name then
             local isim = nesne.Name:lower()
             if isim:find("chest") or isim:find("crate") then
-                if toplananSandiklar[tostring(nesne)] then
+                local id = tostring(nesne)
+                if alinanSandiklar[id] then
                     continue
                 end
                 local pos = nesne.Position
@@ -36,7 +38,7 @@ local function sandikBul()
                     local mesafe = (ben.Position - pos).Magnitude
                     table.insert(sandiklar, {
                         nesne = nesne,
-                        id = tostring(nesne),
+                        id = id,
                         konum = pos,
                         mesafe = mesafe,
                         isim = nesne.Name,
@@ -49,9 +51,13 @@ local function sandikBul()
 end
 
 local function enYakinSandik()
-    local sandiklar = sandikBul()
-    if #sandiklar == 0 then return nil end
+    local sandiklar = sandikTara()
+    if #sandiklar == 0 then 
+        sandikListesi = {}
+        return nil 
+    end
     table.sort(sandiklar, function(a, b) return a.mesafe < b.mesafe end)
+    sandikListesi = sandiklar
     return sandiklar[1]
 end
 
@@ -84,7 +90,7 @@ local function sandigaGit(hedef)
     can.PlatformStand = true
     can.Sit = false
     
-    local ucusNoktasi = Vector3.new(hedef.X, hedef.Y + 2, hedef.Z)
+    local ucusNoktasi = Vector3.new(hedef.X, hedef.Y + 3, hedef.Z)
     ben.CFrame = CFrame.new(ucusNoktasi)
     wait(0.05)
     
@@ -99,10 +105,38 @@ local function sandikAl(sandik)
     local ben = hrp()
     if not ben then return false end
     
+    -- Sandığın üzerine ışınlan
     ben.CFrame = CFrame.new(sandik.konum + Vector3.new(0, 1.5, 0))
     wait(0.1)
     
-    toplananSandiklar[sandik.id] = true
+    -- ClickDetector dene
+    local click = sandik.nesne:FindFirstChildOfClass("ClickDetector")
+    if click then
+        fireclickdetector(click)
+    end
+    
+    -- ProximityPrompt dene
+    local prompt = sandik.nesne:FindFirstChildOfClass("ProximityPrompt")
+    if prompt then
+        prompt:Activate()
+    end
+    
+    -- Tool dene
+    if sandik.nesne:IsA("Tool") then
+        sandik.nesne.Parent = LocalPlayer.Character
+    end
+    
+    -- KESİN: Bu sandığı SİL (bir daha asla gitme)
+    alinanSandiklar[sandik.id] = true
+    
+    -- Sandığı listeden SİL
+    for i, s in ipairs(sandikListesi) do
+        if s.id == sandik.id then
+            table.remove(sandikListesi, i)
+            break
+        end
+    end
+    
     return true
 end
 
@@ -131,8 +165,9 @@ local function panelOlustur()
     sifirlaBtn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", sifirlaBtn).CornerRadius = UDim.new(1, 0)
     sifirlaBtn.Activated:Connect(function()
-        toplananSandiklar = {}
-        print("Temizlendi!")
+        alinanSandiklar = {}
+        sandikListesi = {}
+        print("Tum sandiklar sifirlandi!")
     end)
     
     btn.Activated:Connect(function()
@@ -140,7 +175,8 @@ local function panelOlustur()
         if chestFarmEnabled then
             btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
             btn.Text = "DURDUR"
-            toplananSandiklar = {}
+            alinanSandiklar = {}
+            sandikListesi = {}
         else
             btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
             btn.Text = "BASLAT"
@@ -168,13 +204,13 @@ local function anaDongu()
     
     local basarili = sandigaGit(hedef.konum)
     if not basarili then
-        toplananSandiklar[hedef.id] = true
+        alinanSandiklar[hedef.id] = true
         wait(0.2)
         return
     end
     
     sandikAl(hedef)
-    print("✅ " .. hedef.isim .. " toplandi!")
+    print("✅ " .. hedef.isim .. " toplandi! Kalan sandik: " .. #sandikListesi)
     wait(0.1)
 end
 
@@ -186,4 +222,4 @@ task.spawn(function()
     end
 end)
 
-print("BLOX FRUITS AUTO CHEST HAZIR!")
+print("BLOX FRUITS AUTO CHEST - ALINAN SANDIKLAR SILINIYOR!")
