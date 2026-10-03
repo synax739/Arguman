@@ -1,4 +1,4 @@
--- JJS/TAKIMLI OYUNLAR - TAM KİLİT (KAMERA + KARAKTER, DOĞRU ÖNCELİK)
+-- TAM KİLİT (KAMERA + KARAKTER GÖVDESİ) - INPUT ENGELLEMELİ
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -7,6 +7,17 @@ local LocalPlayer = Players.LocalPlayer
 local aimbotEnabled = false
 local lockTarget = nil
 local lockCircle = nil
+local controlsDisabled = false
+
+-- PlayerModule'ü al (input kontrolü için)
+local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
+local PlayerModule = nil
+local Controls = nil
+
+pcall(function()
+    PlayerModule = require(PlayerScripts:WaitForChild("PlayerModule"))
+    Controls = PlayerModule:GetControls()
+end)
 
 local function getCharacter(plr)
     return plr and plr.Character or nil
@@ -62,8 +73,8 @@ local function findClosestEnemy()
     return closest
 end
 
--- ===== TAM KİLİT (KARAKTER + KAMERA) =====
-local function forceLock()
+-- ===== TAM KİLİT (TÜM PARÇALAR) =====
+local function applyLock()
     if not aimbotEnabled or not lockTarget then return end
     
     local myChar = LocalPlayer.Character
@@ -72,38 +83,71 @@ local function forceLock()
     if not targetChar then return end
     
     local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    local myHead = myChar:FindFirstChild("Head")
-    local hum = myChar:FindFirstChildOfClass("Humanoid")
     local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
+    local hum = myChar:FindFirstChildOfClass("Humanoid")
     
-    if not myHrp or not targetHrp then return end
+    if not myHrp or not targetHrp or not hum then return end
     
     local targetPos = targetHrp.Position + Vector3.new(0, 1, 0)
     local myPos = myHrp.Position
+    local flatTarget = Vector3.new(targetPos.X, myPos.Y, targetPos.Z)
     
-    -- Açıyı hesapla
-    local dx = targetPos.X - myPos.X
-    local dz = targetPos.Z - myPos.Z
-    local angle = math.atan2(dx, dz)
+    -- AutoRotate kapat
+    hum.AutoRotate = false
     
-    -- 1. Humanoid AutoRotate'i kapat
-    if hum then
-        hum.AutoRotate = false
+    -- 1. HumanoidRootPart'ı döndür
+    pcall(function()
+        myHrp.CFrame = CFrame.lookAt(myPos, flatTarget)
+    end)
+    
+    -- 2. UpperTorso / Torso döndür
+    local upper = myChar:FindFirstChild("UpperTorso") or myChar:FindFirstChild("Torso")
+    if upper then
+        pcall(function()
+            local upPos = upper.Position
+            local upFlatTarget = Vector3.new(targetPos.X, upPos.Y, targetPos.Z)
+            upper.CFrame = CFrame.lookAt(upPos, upFlatTarget)
+        end)
     end
     
-    -- 2. HumanoidRootPart'ı zorla döndür (mevcut pozisyonu koru)
-    myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
-    
-    -- 3. Head'i zorla döndür
-    if myHead then
-        myHead.CFrame = CFrame.new(myHead.Position) * CFrame.Angles(0, angle, 0)
+    -- 3. Head döndür
+    local head = myChar:FindFirstChild("Head")
+    if head then
+        pcall(function()
+            local headPos = head.Position
+            local headFlatTarget = Vector3.new(targetPos.X, headPos.Y, targetPos.Z)
+            head.CFrame = CFrame.lookAt(headPos, headFlatTarget)
+        end)
     end
     
-    -- 4. Kamerayı kafadan hedefe kilit
-    Camera.CameraType = Enum.CameraType.Scriptable
-    if myHead then
-        Camera.CFrame = CFrame.lookAt(myHead.Position, targetPos)
+    -- 4. Kamera
+    if head then
+        Camera.CameraType = Enum.CameraType.Scriptable
+        pcall(function()
+            Camera.CFrame = CFrame.lookAt(head.Position, targetPos)
+        end)
     end
+end
+
+-- INPUT ENGELLEME (karakter gövdesinin dönmesini engeller)
+local function disableControls()
+    if controlsDisabled then return end
+    pcall(function()
+        if Controls then
+            Controls:Disable()
+            controlsDisabled = true
+        end
+    end)
+end
+
+local function enableControls()
+    if not controlsDisabled then return end
+    pcall(function()
+        if Controls then
+            Controls:Enable()
+            controlsDisabled = false
+        end
+    end)
 end
 
 local function createLockCircle()
@@ -170,6 +214,7 @@ local function disableLock()
             hum.AutoRotate = true
         end
     end)
+    enableControls()
 end
 
 local function createToggleButton()
@@ -257,6 +302,7 @@ local function createToggleButton()
         if aimbotEnabled then
             lockTarget = findClosestEnemy()
             enableFirstPerson()
+            disableControls() -- INPUT ENGELLE
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
@@ -269,24 +315,26 @@ local function createToggleButton()
     return btn
 end
 
--- ===== EN YÜKSEK ÖNCELİKLİ RENDERSTEP (KARAKTER + KAMERA GÜNCELLEMESİNDEN SONRA) =====
-RunService:BindToRenderStep("ForceAimLock", Enum.RenderPriority.Character.Value + 100, function()
-    if aimbotEnabled and lockTarget then
-        if not isAlive(lockTarget) or isSameTeam(lockTarget) then
-            lockTarget = findClosestEnemy()
-        end
-        if lockTarget then
-            forceLock()
-        end
-    end
-    updateLockCircle()
+-- ===== ÇOK KATMANLI HOOK =====
+-- 1. PreAnimation (animasyondan önce)
+RunService.PreAnimation:Connect(function()
+    pcall(applyLock)
 end)
 
--- ===== HEARTBEAT İLE EK GÜVENCE (karakter fizik güncellemesinden sonra) =====
+-- 2. PreSimulation (fizikten önce)
+RunService.PreSimulation:Connect(function()
+    pcall(applyLock)
+end)
+
+-- 3. En yüksek öncelikli RenderStep (render öncesi son söz)
+RunService:BindToRenderStep("ForceAimLock", Enum.RenderPriority.Camera.Value + 10, function()
+    pcall(applyLock)
+    pcall(updateLockCircle)
+end)
+
+-- 4. Heartbeat (yedek)
 RunService.Heartbeat:Connect(function()
-    if aimbotEnabled and lockTarget then
-        pcall(forceLock)
-    end
+    pcall(applyLock)
 end)
 
 createLockCircle()
@@ -297,8 +345,9 @@ LocalPlayer.CharacterAdded:Connect(function()
     wait(0.5)
     if aimbotEnabled then
         enableFirstPerson()
+        disableControls()
     end
 end)
 
-print("✅ AIMBOT (TAM KILIT - DOGRU ONCELIK) YUKLENDI!")
-print("🎯 Kamera + karakter hedefe kilitli. Ekrana dokunmak etkilemez.")
+print("✅ TAM KILIT (INPUT ENGELLEMELI) YUKLENDI!")
+print("🎯 Karakter govdesi de hedefe kilitli. Ekrana surukleme calismaz.")
