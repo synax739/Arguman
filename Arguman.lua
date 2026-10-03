@@ -1,93 +1,280 @@
--- Delta Executor | Roblox Tek Kişilik Savaş Oyunu
--- Aim + Karakter Dönüşü | En Yakın Hedef | Kafaya Kilit
-
+-- JJS AIMBOT (TAKIM KONTROLÜ + 1. ŞAHIS MODU)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
--- AYARLAR
-local AYARLAR = {
-    KILIT_HIZI = 0.35,        -- Kamera dönüş hızı (0.1 = anında, 1.0 = yavaş)
-    KARAKTER_DONUS_HIZI = 0.25, -- Karakter dönüş hızı
-    KAFAYA_KILIT = true,
-    TUS = Enum.KeyCode.E,
-    MAKS_MESAFE = 1000
-}
+local aimbotEnabled = false
+local lockTarget = nil
+local lockCircle = nil
 
-local aktif = true
-local hedef = nil
+local function getCharacter(plr)
+    return plr and plr.Character or nil
+end
 
--- En yakın geçerli hedefi bul
-local function EnYakinHedefiBul()
-    local enYakin = nil
-    local enKisaMesafe = AYARLAR.MAKS_MESAFE
+local function getHumanoidRootPart(plr)
+    local char = getCharacter(plr)
+    return char and char:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function isAlive(plr)
+    local char = getCharacter(plr)
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0 or false
+end
+
+-- TAKIM KONTROLÜ: Aynı takımda mı?
+local function isSameTeam(plr)
+    local myTeam = LocalPlayer.Team
+    local myTeamColor = LocalPlayer.TeamColor
+    if not myTeam and not myTeamColor then return false end
     
-    if not LocalPlayer.Character then return nil end
-    local benimKok = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not benimKok then return nil end
+    if myTeam and plr.Team == myTeam then return true end
+    if myTeamColor and plr.TeamColor == myTeamColor then return true end
+    
+    return false
+end
 
-    for _, oyuncu in pairs(Players:GetPlayers()) do
-        if oyuncu ~= LocalPlayer and oyuncu.Character then
-            local kok = oyuncu.Character:FindFirstChild("HumanoidRootPart")
-            local insan = oyuncu.Character:FindFirstChildOfClass("Humanoid")
-            
-            if kok and insan and insan.Health > 0 then
-                local mesafe = (kok.Position - benimKok.Position).Magnitude
-                if mesafe < enKisaMesafe then
-                    enKisaMesafe = mesafe
-                    enYakin = oyuncu
-                end
-            end
+local function findClosestEnemy()
+    local myChar = LocalPlayer.Character
+    if not myChar then return nil end
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return nil end
+
+    local closest, closestDist = nil, math.huge
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if not isAlive(plr) then continue end
+        if isSameTeam(plr) then continue end -- Takım arkadaşlarını atla
+        
+        local hrp = getHumanoidRootPart(plr)
+        if not hrp then continue end
+        local dist = (myHrp.Position - hrp.Position).Magnitude
+        if dist < closestDist then
+            closestDist = dist
+            closest = plr
         end
     end
-    return enYakin
+    return closest
 end
 
--- Hedefin kafa pozisyonunu al
-local function KafaPozisyonu(oyuncu)
-    if not oyuncu or not oyuncu.Character then return nil end
-    if AYARLAR.KAFAYA_KILIT then
-        local kafa = oyuncu.Character:FindFirstChild("Head")
-        if kafa then return kafa.Position end
-    end
-    local kok = oyuncu.Character:FindFirstChild("HumanoidRootPart")
-    return kok and kok.Position or nil
-end
-
--- ANA DÖNGÜ
-RunService.RenderStepped:Connect(function()
-    if not aktif then return end
-    if not LocalPlayer.Character then return end
+local function lockOntoTarget(targetPlayer)
+    if not targetPlayer then return end
+    local targetChar = getCharacter(targetPlayer)
+    if not targetChar then return end
+    local targetHrp = getHumanoidRootPart(targetPlayer)
+    if not targetHrp then return end
     
-    local benimKok = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not benimKok then return end
-
-    -- Hedefi güncelle
-    hedef = EnYakinHedefiBul()
-    if not hedef then return end
-
-    local hedefPoz = KafaPozisyonu(hedef)
-    if not hedefPoz then return end
-
-    -- 1) KAMERA KİLİT
-    local kameraCFrame = CFrame.new(Camera.CFrame.Position, hedefPoz)
-    Camera.CFrame = Camera.CFrame:Lerp(kameraCFrame, AYARLAR.KILIT_HIZI)
-
-    -- 2) KARAKTER DÖNÜŞÜ (Aim ile birlikte karakter de hedefe döner)
-    local hedefYatay = Vector3.new(hedefPoz.X, benimKok.Position.Y, hedefPoz.Z)
-    local karakterCFrame = CFrame.lookAt(benimKok.Position, hedefYatay)
-    benimKok.CFrame = benimKok.CFrame:Lerp(karakterCFrame, AYARLAR.KARAKTER_DONUS_HIZI)
-end)
-
--- AÇMA/KAPAMA
-UserInputService.InputBegan:Connect(function(giris, islenmis)
-    if islenmis then return end
-    if giris.KeyCode == AYARLAR.TUS then
-        aktif = not aktif
-        print("[AimBot] " .. (aktif and "AKTIF" or "KAPALI"))
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return end
+    
+    local targetPos = targetHrp.Position
+    local myPos = myHrp.Position
+    local dist = (targetPos - myPos).Magnitude
+    
+    local camDistance = 12
+    local heightOffset = 8
+    
+    if dist < 15 then
+        camDistance = 7
+        heightOffset = 5
+    elseif dist < 30 then
+        camDistance = 10
+        heightOffset = 7
     end
+    
+    local dir = (targetPos - myPos).Unit
+    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
+    local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
+    
+    if camPos == camPos and lookTarget == lookTarget then
+        Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
+    end
+end
+
+local function createLockCircle()
+    if lockCircle then
+        pcall(function() lockCircle:Remove() end)
+        lockCircle = nil
+    end
+    lockCircle = Drawing.new("Circle")
+    if lockCircle then
+        lockCircle.Thickness = 3
+        lockCircle.NumSides = 32
+        lockCircle.Filled = false
+        lockCircle.Color = Color3.fromRGB(0, 180, 255)
+        lockCircle.Transparency = 0.8
+        lockCircle.Radius = 30
+        lockCircle.Visible = false
+        lockCircle.Position = Vector2.new(0, 0)
+    end
+    return lockCircle
+end
+
+local function updateLockCircle()
+    if not aimbotEnabled or not lockTarget then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local char = getCharacter(lockTarget)
+    if not char then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local hrp = getHumanoidRootPart(lockTarget)
+    if not hrp then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local pos = hrp.Position + Vector3.new(0, 2, 0)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+    if onScreen and lockCircle then
+        lockCircle.Visible = true
+        lockCircle.Position = Vector2.new(screenPos.X, screenPos.Y)
+    else
+        if lockCircle then lockCircle.Visible = false end
+    end
+end
+
+-- 1. ŞAHIS MODU
+local function enableFirstPerson()
+    pcall(function()
+        LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+    end)
+end
+
+local function disableFirstPerson()
+    pcall(function()
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic
+    end)
+end
+
+local function createToggleButton()
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "AimbotToggle"
+    gui.ResetOnSpawn = false
+
+    local btn = Instance.new("ImageButton", gui)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(0, 20, 0.42, -40)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    btn.BackgroundTransparency = 0.1
+    btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local outerRing = Instance.new("Frame", btn)
+    outerRing.Size = UDim2.new(1, 0, 1, 0)
+    outerRing.Position = UDim2.new(0, 0, 0, 0)
+    outerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    outerRing.BackgroundTransparency = 0.8
+    outerRing.BorderSizePixel = 3
+    outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", outerRing).CornerRadius = UDim.new(1, 0)
+
+    local innerRing = Instance.new("Frame", btn)
+    innerRing.Size = UDim2.new(0, 55, 0, 55)
+    innerRing.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
+    innerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    innerRing.BackgroundTransparency = 0.9
+    innerRing.BorderSizePixel = 2
+    innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", innerRing).CornerRadius = UDim.new(1, 0)
+
+    local hLine = Instance.new("Frame", btn)
+    hLine.Size = UDim2.new(0, 28, 0, 2)
+    hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
+    hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    hLine.BackgroundTransparency = 0
+    hLine.BorderSizePixel = 0
+
+    local vLine = Instance.new("Frame", btn)
+    vLine.Size = UDim2.new(0, 2, 0, 28)
+    vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
+    vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    vLine.BackgroundTransparency = 0
+    vLine.BorderSizePixel = 0
+
+    local statusDot = Instance.new("Frame", btn)
+    statusDot.Size = UDim2.new(0, 18, 0, 18)
+    statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
+    statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    statusDot.BackgroundTransparency = 0
+    statusDot.BorderSizePixel = 0
+    Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+
+    local statusText = Instance.new("TextLabel", btn)
+    statusText.Size = UDim2.new(1, 0, 0, 20)
+    statusText.Position = UDim2.new(0, 0, 1, -15)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "OFF"
+    statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+    statusText.TextSize = 13
+    statusText.Font = Enum.Font.SourceSansBold
+
+    local function updateButton()
+        if aimbotEnabled then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+            outerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            innerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            statusText.Text = "ON"
+            statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+            hLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            vLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            statusText.Text = "OFF"
+            statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+            hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    end
+
+    btn.Activated:Connect(function()
+        aimbotEnabled = not aimbotEnabled
+        if aimbotEnabled then
+            lockTarget = findClosestEnemy()
+        else
+            lockTarget = nil
+            if lockCircle then lockCircle.Visible = false end
+        end
+        updateButton()
+    end)
+
+    updateButton()
+    return btn
+end
+
+local function mainLoop()
+    if aimbotEnabled then
+        if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
+            lockTarget = findClosestEnemy()
+            if not lockTarget then
+                if lockCircle then lockCircle.Visible = false end
+                return
+            end
+        end
+        lockOntoTarget(lockTarget)
+    end
+    updateLockCircle()
+end
+
+-- BAŞLAT
+createLockCircle()
+createToggleButton()
+
+-- Script açıldığı an 1. şahıs moduna geç
+enableFirstPerson()
+
+RunService.RenderStepped:Connect(function()
+    pcall(mainLoop)
 end)
 
-print("[AimBot] Yüklendi | " .. AYARLAR.TUS.Name .. " ile aç/kapat")
+print("✅ JJS AIMBOT (TAKIM KONTROLU + 1. SAHIS) YUKLENDI!")
+print("🎯 Sol ustteki butonla ac/kapat. Takim arkadaslari hedef alinmaz.")
