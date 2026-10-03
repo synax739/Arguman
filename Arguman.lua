@@ -1,4 +1,4 @@
--- JJS AIMBOT (TAKIM KONTROLÜ + 1. ŞAHIS MODU)
+-- JJS AIMBOT (RAKİP TAKIMA KİLİTLENME + 1. ŞAHIS)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -7,6 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 local aimbotEnabled = false
 local lockTarget = nil
 local lockCircle = nil
+local targetTeam = nil -- Hedef takımı (script açılınca seçilecek)
 
 local function getCharacter(plr)
     return plr and plr.Character or nil
@@ -24,11 +25,10 @@ local function isAlive(plr)
     return hum and hum.Health > 0 or false
 end
 
--- TAKIM KONTROLÜ: Aynı takımda mı?
+-- TAKIM KONTROLÜ
 local function isSameTeam(plr)
     local myTeam = LocalPlayer.Team
     local myTeamColor = LocalPlayer.TeamColor
-    if not myTeam and not myTeamColor then return false end
     
     if myTeam and plr.Team == myTeam then return true end
     if myTeamColor and plr.TeamColor == myTeamColor then return true end
@@ -36,6 +36,38 @@ local function isSameTeam(plr)
     return false
 end
 
+-- RAKİP TAKIMI BUL (Oyundaki tüm takımları listele)
+local function findEnemyTeam()
+    local teams = {}
+    local myTeam = LocalPlayer.Team
+    local myTeamColor = LocalPlayer.TeamColor
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if not isAlive(plr) then continue end
+        
+        local plrTeam = plr.Team
+        local plrTeamColor = plr.TeamColor
+        
+        -- Kendi takımımda değilse
+        local sameTeam = false
+        if myTeam and plrTeam == myTeam then sameTeam = true end
+        if myTeamColor and plrTeamColor == myTeamColor then sameTeam = true end
+        
+        if not sameTeam then
+            -- Rakip takımı kaydet
+            if plrTeam then
+                teams[tostring(plrTeam)] = plrTeam
+            elseif plrTeamColor then
+                teams[tostring(plrTeamColor)] = plrTeamColor
+            end
+        end
+    end
+    
+    return teams
+end
+
+-- RAKİP OYUNCUYU BUL
 local function findClosestEnemy()
     local myChar = LocalPlayer.Character
     if not myChar then return nil end
@@ -146,12 +178,6 @@ local function enableFirstPerson()
     end)
 end
 
-local function disableFirstPerson()
-    pcall(function()
-        LocalPlayer.CameraMode = Enum.CameraMode.Classic
-    end)
-end
-
 local function createToggleButton()
     local gui = Instance.new("ScreenGui", game.CoreGui)
     gui.Name = "AimbotToggle"
@@ -240,6 +266,11 @@ local function createToggleButton()
         aimbotEnabled = not aimbotEnabled
         if aimbotEnabled then
             lockTarget = findClosestEnemy()
+            if lockTarget then
+                print("🎯 Hedef: " .. lockTarget.Name)
+            else
+                print("❌ Rakip bulunamadi!")
+            end
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
@@ -253,6 +284,7 @@ end
 
 local function mainLoop()
     if aimbotEnabled then
+        -- Hedef yoksa veya öldüyse veya takım arkadaşıysa yeni hedef bul
         if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
             lockTarget = findClosestEnemy()
             if not lockTarget then
@@ -276,5 +308,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (TAKIM KONTROLU + 1. SAHIS) YUKLENDI!")
-print("🎯 Sol ustteki butonla ac/kapat. Takim arkadaslari hedef alinmaz.")
+print("✅ JJS AIMBOT (RAKIP TAKIM + 1. SAHIS) YUKLENDI!")
+print("🎯 Sol ustteki butonla ac/kapat.")
