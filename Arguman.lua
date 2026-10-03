@@ -1,4 +1,4 @@
--- JJS/TAKIMLI OYUNLAR - TAM KİLİTLİ AIMBOT (KAMERA + KARAKTER)
+-- JJS/TAKIMLI OYUNLAR - TAM KİLİT (KAMERA + KARAKTER, DOĞRU ÖNCELİK)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -62,40 +62,48 @@ local function findClosestEnemy()
     return closest
 end
 
--- ===== TAM KİLİT: KAMERA + KARAKTER =====
-local function lockOntoTarget(targetPlayer)
-    if not targetPlayer then return end
-    local targetChar = getCharacter(targetPlayer)
-    if not targetChar then return end
-    local targetHrp = getHumanoidRootPart(targetPlayer)
-    if not targetHrp then return end
+-- ===== TAM KİLİT (KARAKTER + KAMERA) =====
+local function forceLock()
+    if not aimbotEnabled or not lockTarget then return end
     
     local myChar = LocalPlayer.Character
     if not myChar then return end
+    local targetChar = lockTarget.Character
+    if not targetChar then return end
     
-    local head = myChar:FindFirstChild("Head")
     local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    local myHead = myChar:FindFirstChild("Head")
     local hum = myChar:FindFirstChildOfClass("Humanoid")
-    if not head or not myHrp or not hum then return end
+    local targetHrp = targetChar:FindFirstChild("HumanoidRootPart")
     
-    -- Otomatik dönüşü KAPAT (karakter kendi kendine dönmesin)
-    hum.AutoRotate = false
+    if not myHrp or not targetHrp then return end
     
     local targetPos = targetHrp.Position + Vector3.new(0, 1, 0)
-    
-    -- ===== 1. KARAKTERİ HEDEFE DÖNDÜR =====
     local myPos = myHrp.Position
+    
+    -- Açıyı hesapla
     local dx = targetPos.X - myPos.X
     local dz = targetPos.Z - myPos.Z
     local angle = math.atan2(dx, dz)
     
-    -- Pozisyonu koru, sadece Y ekseninde döndür
+    -- 1. Humanoid AutoRotate'i kapat
+    if hum then
+        hum.AutoRotate = false
+    end
+    
+    -- 2. HumanoidRootPart'ı zorla döndür (mevcut pozisyonu koru)
     myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
     
-    -- ===== 2. KAMERAYI TAM KİLİTLE =====
+    -- 3. Head'i zorla döndür
+    if myHead then
+        myHead.CFrame = CFrame.new(myHead.Position) * CFrame.Angles(0, angle, 0)
+    end
+    
+    -- 4. Kamerayı kafadan hedefe kilit
     Camera.CameraType = Enum.CameraType.Scriptable
-    Camera.CameraSubject = hum
-    Camera.CFrame = CFrame.lookAt(head.Position, targetPos)
+    if myHead then
+        Camera.CFrame = CFrame.lookAt(myHead.Position, targetPos)
+    end
 end
 
 local function createLockCircle()
@@ -142,7 +150,6 @@ local function updateLockCircle()
     end
 end
 
--- 1. ŞAHIS MODU
 local function enableFirstPerson()
     pcall(function()
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -154,7 +161,6 @@ local function enableFirstPerson()
     end)
 end
 
--- Kapatınca normal moda dön
 local function disableLock()
     pcall(function()
         Camera.CameraType = Enum.CameraType.Custom
@@ -263,19 +269,25 @@ local function createToggleButton()
     return btn
 end
 
-local function mainLoop()
-    if aimbotEnabled then
-        if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
+-- ===== EN YÜKSEK ÖNCELİKLİ RENDERSTEP (KARAKTER + KAMERA GÜNCELLEMESİNDEN SONRA) =====
+RunService:BindToRenderStep("ForceAimLock", Enum.RenderPriority.Character.Value + 100, function()
+    if aimbotEnabled and lockTarget then
+        if not isAlive(lockTarget) or isSameTeam(lockTarget) then
             lockTarget = findClosestEnemy()
-            if not lockTarget then
-                if lockCircle then lockCircle.Visible = false end
-                return
-            end
         end
-        lockOntoTarget(lockTarget)
+        if lockTarget then
+            forceLock()
+        end
     end
     updateLockCircle()
-end
+end)
+
+-- ===== HEARTBEAT İLE EK GÜVENCE (karakter fizik güncellemesinden sonra) =====
+RunService.Heartbeat:Connect(function()
+    if aimbotEnabled and lockTarget then
+        pcall(forceLock)
+    end
+end)
 
 createLockCircle()
 createToggleButton()
@@ -288,9 +300,5 @@ LocalPlayer.CharacterAdded:Connect(function()
     end
 end)
 
-RunService.RenderStepped:Connect(function()
-    pcall(mainLoop)
-end)
-
-print("✅ AIMBOT (TAM KILIT) YUKLENDI!")
-print("🎯 Kamera ve karakter hedefe kilitlendi. Ekrana dokunmak etkilemez.")
+print("✅ AIMBOT (TAM KILIT - DOGRU ONCELIK) YUKLENDI!")
+print("🎯 Kamera + karakter hedefe kilitli. Ekrana dokunmak etkilemez.")
