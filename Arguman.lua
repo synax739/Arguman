@@ -1,4 +1,4 @@
--- JJS/TAKIMLI OYUNLAR - RAKİP TAKIMA KİLİTLENME (YAKIN KAMERA)
+-- JJS/TAKIMLI OYUNLAR - RAKİP TAKIMA KİLİTLENME (GERÇEK 1. ŞAHIS)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -24,7 +24,6 @@ local function isAlive(plr)
     return hum and hum.Health > 0 or false
 end
 
--- ===== KESİN TAKIM TESPİTİ (ATTRİBUTE) =====
 local function getPlayerTeam(plr)
     local attr = plr:GetAttribute("Team")
     if attr then return tostring(attr) end
@@ -63,6 +62,7 @@ local function findClosestEnemy()
     return closest
 end
 
+-- ===== GERÇEK 1. ŞAHIS KAMERA KİLİDİ =====
 local function lockOntoTarget(targetPlayer)
     if not targetPlayer then return end
     local targetChar = getCharacter(targetPlayer)
@@ -72,27 +72,33 @@ local function lockOntoTarget(targetPlayer)
     
     local myChar = LocalPlayer.Character
     if not myChar then return end
-    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHrp then return end
+    
     local head = myChar:FindFirstChild("Head")
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    local hum = myChar:FindFirstChildOfClass("Humanoid")
+    if not head or not myHrp then return end
     
-    local targetPos = targetHrp.Position
-    local myPos = myHrp.Position
-    
-    -- YAKIN VE ALÇAK KAMERA (1. fotoğraf gibi)
-    local camDistance = 4
-    local heightOffset = 1.5
-    
-    -- Kamera pozisyonu (karakterin hemen arkası, göz hizası)
-    local dir = (targetPos - myPos).Unit
-    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
-    
-    -- Hedefe bak (gövde hizası)
-    local lookTarget = targetPos + Vector3.new(0, 1, 0)
-    
-    if camPos == camPos and lookTarget == lookTarget then
-        Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
+    -- Kamerayı Humanoid'e bağla (oyun kendi 1. şahıs kamerasını kullansın)
+    if hum and Camera.CameraSubject ~= hum then
+        Camera.CameraSubject = hum
     end
+    
+    local targetPos = targetHrp.Position + Vector3.new(0, 1, 0)
+    
+    -- KAMERA = KARAKTERİN KAFA POZİSYONU (1. şahıs)
+    local camPos = head.Position
+    
+    -- Kamerayı kafadan hedefe doğrult (1. şahıs görünümü)
+    if camPos == camPos and targetPos == targetPos then
+        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
+    end
+    
+    -- KARAKTERİ HEDEFE DÖNDÜR (böylece silah/karakter de hedefe bakar)
+    local dx = targetPos.X - myHrp.Position.X
+    local dz = targetPos.Z - myHrp.Position.Z
+    local angle = math.atan2(dx, dz)
+    
+    myHrp.CFrame = CFrame.new(myHrp.Position) * CFrame.Angles(0, angle, 0)
 end
 
 local function createLockCircle()
@@ -139,9 +145,15 @@ local function updateLockCircle()
     end
 end
 
+-- 1. ŞAHIS MODU AÇ
 local function enableFirstPerson()
     pcall(function()
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            Camera.CameraSubject = hum
+        end
+        Camera.FieldOfView = 70
     end)
 end
 
@@ -229,6 +241,7 @@ local function createToggleButton()
         aimbotEnabled = not aimbotEnabled
         if aimbotEnabled then
             lockTarget = findClosestEnemy()
+            enableFirstPerson()
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
@@ -258,8 +271,14 @@ createLockCircle()
 createToggleButton()
 enableFirstPerson()
 
+-- Karakter yeniden doğunca 1. şahıs modunu koru
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(0.5)
+    enableFirstPerson()
+end)
+
 RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ AIMBOT (YAKIN KAMERA) YUKLENDI!")
+print("✅ AIMBOT (GERCEK 1. SAHIS) YUKLENDI!")
