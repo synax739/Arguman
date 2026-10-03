@@ -1,4 +1,4 @@
--- JJS/TAKIMLI OYUNLAR - RAKİP TAKIMA KİLİTLENME (GERÇEK 1. ŞAHIS)
+-- JJS/TAKIMLI OYUNLAR - TAM KİLİTLİ AIMBOT (KAMERA + KARAKTER)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -62,7 +62,7 @@ local function findClosestEnemy()
     return closest
 end
 
--- ===== GERÇEK 1. ŞAHIS KAMERA KİLİDİ =====
+-- ===== TAM KİLİT: KAMERA + KARAKTER =====
 local function lockOntoTarget(targetPlayer)
     if not targetPlayer then return end
     local targetChar = getCharacter(targetPlayer)
@@ -76,29 +76,26 @@ local function lockOntoTarget(targetPlayer)
     local head = myChar:FindFirstChild("Head")
     local myHrp = myChar:FindFirstChild("HumanoidRootPart")
     local hum = myChar:FindFirstChildOfClass("Humanoid")
-    if not head or not myHrp then return end
+    if not head or not myHrp or not hum then return end
     
-    -- Kamerayı Humanoid'e bağla (oyun kendi 1. şahıs kamerasını kullansın)
-    if hum and Camera.CameraSubject ~= hum then
-        Camera.CameraSubject = hum
-    end
+    -- Otomatik dönüşü KAPAT (karakter kendi kendine dönmesin)
+    hum.AutoRotate = false
     
     local targetPos = targetHrp.Position + Vector3.new(0, 1, 0)
     
-    -- KAMERA = KARAKTERİN KAFA POZİSYONU (1. şahıs)
-    local camPos = head.Position
-    
-    -- Kamerayı kafadan hedefe doğrult (1. şahıs görünümü)
-    if camPos == camPos and targetPos == targetPos then
-        Camera.CFrame = CFrame.lookAt(camPos, targetPos)
-    end
-    
-    -- KARAKTERİ HEDEFE DÖNDÜR (böylece silah/karakter de hedefe bakar)
-    local dx = targetPos.X - myHrp.Position.X
-    local dz = targetPos.Z - myHrp.Position.Z
+    -- ===== 1. KARAKTERİ HEDEFE DÖNDÜR =====
+    local myPos = myHrp.Position
+    local dx = targetPos.X - myPos.X
+    local dz = targetPos.Z - myPos.Z
     local angle = math.atan2(dx, dz)
     
-    myHrp.CFrame = CFrame.new(myHrp.Position) * CFrame.Angles(0, angle, 0)
+    -- Pozisyonu koru, sadece Y ekseninde döndür
+    myHrp.CFrame = CFrame.new(myPos) * CFrame.Angles(0, angle, 0)
+    
+    -- ===== 2. KAMERAYI TAM KİLİTLE =====
+    Camera.CameraType = Enum.CameraType.Scriptable
+    Camera.CameraSubject = hum
+    Camera.CFrame = CFrame.lookAt(head.Position, targetPos)
 end
 
 local function createLockCircle()
@@ -145,7 +142,7 @@ local function updateLockCircle()
     end
 end
 
--- 1. ŞAHIS MODU AÇ
+-- 1. ŞAHIS MODU
 local function enableFirstPerson()
     pcall(function()
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -154,6 +151,18 @@ local function enableFirstPerson()
             Camera.CameraSubject = hum
         end
         Camera.FieldOfView = 70
+    end)
+end
+
+-- Kapatınca normal moda dön
+local function disableLock()
+    pcall(function()
+        Camera.CameraType = Enum.CameraType.Custom
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            Camera.CameraSubject = hum
+            hum.AutoRotate = true
+        end
     end)
 end
 
@@ -245,6 +254,7 @@ local function createToggleButton()
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
+            disableLock()
         end
         updateButton()
     end)
@@ -271,14 +281,16 @@ createLockCircle()
 createToggleButton()
 enableFirstPerson()
 
--- Karakter yeniden doğunca 1. şahıs modunu koru
 LocalPlayer.CharacterAdded:Connect(function()
     wait(0.5)
-    enableFirstPerson()
+    if aimbotEnabled then
+        enableFirstPerson()
+    end
 end)
 
 RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ AIMBOT (GERCEK 1. SAHIS) YUKLENDI!")
+print("✅ AIMBOT (TAM KILIT) YUKLENDI!")
+print("🎯 Kamera ve karakter hedefe kilitlendi. Ekrana dokunmak etkilemez.")
