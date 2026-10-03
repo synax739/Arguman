@@ -1,62 +1,85 @@
+-- Delta Executor için Roblox AimBot Script
+-- Tek kişilik savaş oyunu için en yakın hedefe kilitlenme
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
+local Camera = workspace.CurrentCamera
 
-local isRunning = false
-local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+-- Ayarlar
+local AYARLAR = {
+    FOV = 150,              -- Kilitlenme açısı (piksel)
+    KILIT_HIZI = 0.15,      -- Kameranın dönüş hızı
+    KAFAYA_KILIT = true,    -- Kafaya kilitle
+    DUVAR_ARDI = false,     -- Duvarların arkasındaki hedefleri kilitle
+    TUS = Enum.KeyCode.E,   -- Açma/kapama tuşu
+    MAX_MESAFE = 500        -- Maksimum hedef mesafesi
+}
 
-if not isMobile then
-    warn("Bu script mobil cihazlar icin tasarlanmistir.")
-    return
-end
+local aktif = true
+local hedef = nil
 
-local function getLookDirection()
-    local lookVector = Camera.CFrame.LookVector
-    return lookVector
-end
+-- En yakın oyuncuyu bul
+local function EnYakinHedefiBul()
+    local enYakin = nil
+    local enKisaMesafe = AYARLAR.MAX_MESAFE
 
-local function moveCharacter(direction)
-    if not Character or not Humanoid or Humanoid.Health <= 0 then return end
-    local moveDirection = Vector3.new(direction.X, 0, direction.Z).Unit
-    Humanoid:MoveTo(Character.HumanoidRootPart.Position + moveDirection * 5)
-end
+    for _, oyuncu in pairs(Players:GetPlayers()) do
+        if oyuncu ~= LocalPlayer and oyuncu.Character then
+            local karakter = oyuncu.Character
+            local kok = karakter:FindFirstChild("HumanoidRootPart")
+            local insan = karakter:FindFirstChildOfClass("Humanoid")
 
-local function onHeartbeat()
-    if not isRunning then return end
-    local lookDir = getLookDirection()
-    moveCharacter(lookDir)
-end
-
-local function startScript()
-    if isRunning then return end
-    isRunning = true
-    RunService.Heartbeat:Connect(onHeartbeat)
-end
-
-local function stopScript()
-    isRunning = false
-end
-
--- Baslatma komutu (ornek: "start" yazinca calisir)
-local function onChatCommand(msg)
-    if msg == "start" then
-        startScript()
-    elseif msg == "stop" then
-        stopScript()
+            if kok and insan and insan.Health > 0 then
+                local mesafe = (kok.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if mesafe < enKisaMesafe then
+                    enKisaMesafe = mesafe
+                    enYakin = oyuncu
+                end
+            end
+        end
     end
+    return enYakin
 end
 
--- Ornek komut alimi (oyun icinde sohbet veya uzaktan komut icin)
--- Not: Delta ortaminda bu fonksiyonu kendi executorunuzun komut sistemiyle baglayin.
--- Asagidaki satirlar sadece ornek amaçlidir.
--- Ornek kullanim: start() veya stop() cagirin.
+-- Kafa pozisyonunu al
+local function HedefPozisyonu(oyuncu)
+    if not oyuncu or not oyuncu.Character then return nil end
+    local karakter = oyuncu.Character
+    local kafa = karakter:FindFirstChild("Head")
+    local kok = karakter:FindFirstChild("HumanoidRootPart")
 
--- Global fonksiyonlar (executor uzerinden erisim icin)
-_G.RunScript = startScript
-_G.StopScript = stopScript
+    if AYARLAR.KAFAYA_KILIT and kafa then
+        return kafa.Position
+    elseif kok then
+        return kok.Position
+    end
+    return nil
+end
 
-print("Delta mobil bakis scripti yuklendi. 'start' yazarak calistirin, 'stop' ile durdurun.")
+-- Ana döngü
+RunService.RenderStepped:Connect(function()
+    if not aktif then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    hedef = EnYakinHedefiBul()
+    if not hedef then return end
+
+    local hedefPoz = HedefPozisyonu(hedef)
+    if not hedefPoz then return end
+
+    -- Kamerayı hedefe yönlendir
+    local yeniCFrame = CFrame.new(Camera.CFrame.Position, hedefPoz)
+    Camera.CFrame = Camera.CFrame:Lerp(yeniCFrame, AYARLAR.KILIT_HIZI)
+end)
+
+-- Açma/kapama
+game:GetService("UserInputService").InputBegan:Connect(function(giris, islenmis)
+    if islenmis then return end
+    if giris.KeyCode == AYARLAR.TUS then
+        aktif = not aktif
+        print("[AimBot] Durum:", aktif and "AKTIF" or "KAPALI")
+    end
+end)
+
+print("[AimBot] Yüklendi. Tuş:", AYARLAR.TUS.Name)
