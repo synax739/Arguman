@@ -1,4 +1,4 @@
--- JJS AIMBOT (RAKİP TAKIMA KİLİTLENME + 1. ŞAHIS)
+-- JJS/TAKIMLI OYUNLAR - GELİŞMİŞ RAKİP TESPİTİ + AIMBOT
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -7,7 +7,6 @@ local LocalPlayer = Players.LocalPlayer
 local aimbotEnabled = false
 local lockTarget = nil
 local lockCircle = nil
-local targetTeam = nil -- Hedef takımı (script açılınca seçilecek)
 
 local function getCharacter(plr)
     return plr and plr.Character or nil
@@ -25,49 +24,46 @@ local function isAlive(plr)
     return hum and hum.Health > 0 or false
 end
 
--- TAKIM KONTROLÜ
+-- ===== GELİŞMİŞ TAKIM TESPİTİ (ÇOKLU YÖNTEM) =====
+local function getPlayerTeam(plr)
+    -- Yöntem 1: Player.Team
+    if plr.Team then return tostring(plr.Team) end
+    -- Yöntem 2: Player.TeamColor
+    if plr.TeamColor then return tostring(plr.TeamColor) end
+    -- Yöntem 3: Attribute "Team"
+    local attr = plr:GetAttribute("Team")
+    if attr then return tostring(attr) end
+    -- Yöntem 4: Attribute "team"
+    local attr2 = plr:GetAttribute("team")
+    if attr2 then return tostring(attr2) end
+    -- Yöntem 5: Player içinde Team adlı değer
+    local teamVal = plr:FindFirstChild("Team")
+    if teamVal and teamVal.Value then return tostring(teamVal.Value) end
+    -- Yöntem 6: Character içinde Team adlı değer
+    local char = plr.Character
+    if char then
+        local charTeam = char:FindFirstChild("Team")
+        if charTeam and charTeam.Value then return tostring(charTeam.Value) end
+    end
+    -- Yöntem 7: leaderstats içinde Team
+    local ls = plr:FindFirstChild("leaderstats")
+    if ls then
+        local t = ls:FindFirstChild("Team")
+        if t and t.Value then return tostring(t.Value) end
+    end
+    return nil
+end
+
 local function isSameTeam(plr)
-    local myTeam = LocalPlayer.Team
-    local myTeamColor = LocalPlayer.TeamColor
-    
-    if myTeam and plr.Team == myTeam then return true end
-    if myTeamColor and plr.TeamColor == myTeamColor then return true end
-    
+    local myTeam = getPlayerTeam(LocalPlayer)
+    local plrTeam = getPlayerTeam(plr)
+    if myTeam and plrTeam then
+        return myTeam == plrTeam
+    end
     return false
 end
 
--- RAKİP TAKIMI BUL (Oyundaki tüm takımları listele)
-local function findEnemyTeam()
-    local teams = {}
-    local myTeam = LocalPlayer.Team
-    local myTeamColor = LocalPlayer.TeamColor
-    
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr == LocalPlayer then continue end
-        if not isAlive(plr) then continue end
-        
-        local plrTeam = plr.Team
-        local plrTeamColor = plr.TeamColor
-        
-        -- Kendi takımımda değilse
-        local sameTeam = false
-        if myTeam and plrTeam == myTeam then sameTeam = true end
-        if myTeamColor and plrTeamColor == myTeamColor then sameTeam = true end
-        
-        if not sameTeam then
-            -- Rakip takımı kaydet
-            if plrTeam then
-                teams[tostring(plrTeam)] = plrTeam
-            elseif plrTeamColor then
-                teams[tostring(plrTeamColor)] = plrTeamColor
-            end
-        end
-    end
-    
-    return teams
-end
-
--- RAKİP OYUNCUYU BUL
+-- ===== RAKİP BULMA =====
 local function findClosestEnemy()
     local myChar = LocalPlayer.Character
     if not myChar then return nil end
@@ -78,7 +74,7 @@ local function findClosestEnemy()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         if not isAlive(plr) then continue end
-        if isSameTeam(plr) then continue end -- Takım arkadaşlarını atla
+        if isSameTeam(plr) then continue end
         
         local hrp = getHumanoidRootPart(plr)
         if not hrp then continue end
@@ -171,11 +167,23 @@ local function updateLockCircle()
     end
 end
 
--- 1. ŞAHIS MODU
+-- 1. ŞAHIS
 local function enableFirstPerson()
     pcall(function()
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
     end)
+end
+
+-- ===== DEBUG: KİMLER HANGİ TAKIMDA =====
+local function printTeams()
+    print("===== TAKIM BİLGİLERİ =====")
+    print("Ben: " .. LocalPlayer.Name .. " | Takım: " .. tostring(getPlayerTeam(LocalPlayer)))
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            print(plr.Name .. " | Takım: " .. tostring(getPlayerTeam(plr)) .. " | Aynı takım: " .. tostring(isSameTeam(plr)))
+        end
+    end
+    print("=========================")
 end
 
 local function createToggleButton()
@@ -193,7 +201,6 @@ local function createToggleButton()
 
     local outerRing = Instance.new("Frame", btn)
     outerRing.Size = UDim2.new(1, 0, 1, 0)
-    outerRing.Position = UDim2.new(0, 0, 0, 0)
     outerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     outerRing.BackgroundTransparency = 0.8
     outerRing.BorderSizePixel = 3
@@ -213,21 +220,18 @@ local function createToggleButton()
     hLine.Size = UDim2.new(0, 28, 0, 2)
     hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
     hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    hLine.BackgroundTransparency = 0
     hLine.BorderSizePixel = 0
 
     local vLine = Instance.new("Frame", btn)
     vLine.Size = UDim2.new(0, 2, 0, 28)
     vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
     vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    vLine.BackgroundTransparency = 0
     vLine.BorderSizePixel = 0
 
     local statusDot = Instance.new("Frame", btn)
     statusDot.Size = UDim2.new(0, 18, 0, 18)
     statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
     statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    statusDot.BackgroundTransparency = 0
     statusDot.BorderSizePixel = 0
     Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
 
@@ -265,11 +269,12 @@ local function createToggleButton()
     btn.Activated:Connect(function()
         aimbotEnabled = not aimbotEnabled
         if aimbotEnabled then
+            printTeams() -- Debug: takımları yazdır
             lockTarget = findClosestEnemy()
             if lockTarget then
                 print("🎯 Hedef: " .. lockTarget.Name)
             else
-                print("❌ Rakip bulunamadi!")
+                print("❌ Rakip bulunamadi! (Takım tespiti calismiyor olabilir)")
             end
         else
             lockTarget = nil
@@ -284,7 +289,6 @@ end
 
 local function mainLoop()
     if aimbotEnabled then
-        -- Hedef yoksa veya öldüyse veya takım arkadaşıysa yeni hedef bul
         if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
             lockTarget = findClosestEnemy()
             if not lockTarget then
@@ -297,16 +301,13 @@ local function mainLoop()
     updateLockCircle()
 end
 
--- BAŞLAT
 createLockCircle()
 createToggleButton()
-
--- Script açıldığı an 1. şahıs moduna geç
 enableFirstPerson()
 
 RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ JJS AIMBOT (RAKIP TAKIM + 1. SAHIS) YUKLENDI!")
-print("🎯 Sol ustteki butonla ac/kapat.")
+print("✅ AIMBOT YUKLENDI!")
+print("📋 Takım bilgileri için butona tikla, konsolu kontrol et.")
