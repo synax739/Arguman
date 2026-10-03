@@ -1,4 +1,4 @@
--- JJS/TAKIMLI OYUNLAR - RAKİP TAKIMA KİLİTLENME (ATTRİBUTE İLE)
+-- JJS/TAKIMLI OYUNLAR - RAKİP TAKIMA KİLİTLENME (YAKIN KAMERA)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
@@ -40,7 +40,6 @@ local function isSameTeam(plr)
     return false
 end
 
--- ===== RAKİP BULMA =====
 local function findClosestEnemy()
     local myChar = LocalPlayer.Character
     if not myChar then return nil end
@@ -51,7 +50,7 @@ local function findClosestEnemy()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then continue end
         if not isAlive(plr) then continue end
-        if isSameTeam(plr) then continue end -- Takım arkadaşlarını atla
+        if isSameTeam(plr) then continue end
         
         local hrp = getHumanoidRootPart(plr)
         if not hrp then continue end
@@ -75,25 +74,21 @@ local function lockOntoTarget(targetPlayer)
     if not myChar then return end
     local myHrp = myChar:FindFirstChild("HumanoidRootPart")
     if not myHrp then return end
+    local head = myChar:FindFirstChild("Head")
     
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
-    local dist = (targetPos - myPos).Magnitude
     
-    local camDistance = 12
-    local heightOffset = 8
+    -- YAKIN VE ALÇAK KAMERA (1. fotoğraf gibi)
+    local camDistance = 4
+    local heightOffset = 1.5
     
-    if dist < 15 then
-        camDistance = 7
-        heightOffset = 5
-    elseif dist < 30 then
-        camDistance = 10
-        heightOffset = 7
-    end
-    
+    -- Kamera pozisyonu (karakterin hemen arkası, göz hizası)
     local dir = (targetPos - myPos).Unit
     local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
-    local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
+    
+    -- Hedefe bak (gövde hizası)
+    local lookTarget = targetPos + Vector3.new(0, 1, 0)
     
     if camPos == camPos and lookTarget == lookTarget then
         Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
@@ -144,7 +139,6 @@ local function updateLockCircle()
     end
 end
 
--- 1. ŞAHIS
 local function enableFirstPerson()
     pcall(function()
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -268,4 +262,4 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("✅ AIMBOT (ATTRİBUTE TAKIM TESPİTİ) YUKLENDI!")
+print("✅ AIMBOT (YAKIN KAMERA) YUKLENDI!")
