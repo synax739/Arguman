@@ -23,7 +23,7 @@ local function isAlive(plr)
     return hum and hum.Health > 0 or false
 end
 
--- ===== TAKIM TESPİTİ (SADECE ATTRIBUTE İLE) =====
+-- ===== TAKIM TESPİTİ (ATTRIBUTE İLE) =====
 local function getPlayerTeam(plr)
     local teamAttr = plr:GetAttribute("Team")
     if teamAttr then return tostring(teamAttr) end
@@ -33,14 +33,13 @@ end
 local function isSameTeam(plr)
     local myTeam = getPlayerTeam(LocalPlayer)
     local plrTeam = getPlayerTeam(plr)
-    -- İki tarafta da takım bilgisi varsa ve eşitse aynı takımdadır
     if myTeam and plrTeam then
         return myTeam == plrTeam
     end
-    return false -- Takım bilgisi yoksa veya farklıysa rakip kabul et
+    return false
 end
 
--- ===== SADECE RAKİP OYUNCUYU BUL =====
+-- ===== EN YAKIN RAKİBİ BUL =====
 local function findClosestEnemy()
     local myChar = LocalPlayer.Character
     if not myChar then return nil end
@@ -78,19 +77,13 @@ local function lockOntoTarget(targetPlayer)
     
     local targetPos = targetHrp.Position
     local myPos = myHrp.Position
-    local dist = (targetPos - myPos).Magnitude
     
-    -- Sabit yükseklik ve mesafe (her mesafede aynı)
+    -- Sabit yükseklik ve mesafe
     local camDistance = 14
     local heightOffset = 12
     
-    -- Hedefe doğru vektör
     local dir = (targetPos - myPos).Unit
-    
-    -- Sağa kaymayı düzeltmek için: hedefin tam ortasına bak
     local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
-    
-    -- Kamera pozisyonu: karakterin arkası + yukarı
     local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
     
     if camPos == camPos and lookTarget == lookTarget then
@@ -227,7 +220,6 @@ local function createToggleButton()
         aimbotEnabled = not aimbotEnabled
         if aimbotEnabled then
             lockTarget = findClosestEnemy()
-            print("Aimbot Acildi. Hedef: " .. (lockTarget and lockTarget.Name or "Rakip Yok"))
         else
             lockTarget = nil
             if lockCircle then lockCircle.Visible = false end
@@ -239,16 +231,22 @@ local function createToggleButton()
     return btn
 end
 
+-- ===== GÜNCELLENMİŞ ANA DÖNGÜ =====
 local function mainLoop()
     if aimbotEnabled then
-        if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
-            lockTarget = findClosestEnemy()
-            if not lockTarget then
-                if lockCircle then lockCircle.Visible = false end
-                return
-            end
+        -- Her karede en yakın rakibi bul
+        local closestEnemy = findClosestEnemy()
+        
+        if closestEnemy then
+            -- Eğer hedef yoksa VEYA yeni bulunan rakip daha yakınsa hedefi değiştir
+            -- (Her karede hedefi günceller, böylece anında en yakına geçer)
+            lockTarget = closestEnemy
+            lockOntoTarget(lockTarget)
+        else
+            -- Hiç rakip yoksa
+            lockTarget = nil
+            if lockCircle then lockCircle.Visible = false end
         end
-        lockOntoTarget(lockTarget)
     end
     updateLockCircle()
 end
@@ -260,4 +258,5 @@ RunService.RenderStepped:Connect(function()
     pcall(mainLoop)
 end)
 
-print("KABILELER 3v3 AIMBOT (TAKIM KONTROLLU) YUKLENDI!")
+print("KABILELER 3v3 AIMBOT (DINAMIK HEDEFLEME) YUKLENDI!")
+print("Artik her an en yakin rakip hedeflenir.")
