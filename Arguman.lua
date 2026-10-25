@@ -1,102 +1,259 @@
--- KAMERA DEBUG PANELİ
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "CameraDebug"
-gui.ResetOnSpawn = false
+local aimbotEnabled = false
+local lockTarget = nil
+local lockCircle = nil
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 380, 0, 260)
-frame.Position = UDim2.new(0.5, -190, 0.5, -130)
-frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-frame.BackgroundTransparency = 0.15
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+local function getCharacter(plr)
+    return plr and plr.Character or nil
+end
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-title.Text = "🔍 KAMERA DEBUG"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 14
-title.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+local function getHumanoidRootPart(plr)
+    local char = getCharacter(plr)
+    return char and char:FindFirstChild("HumanoidRootPart") or nil
+end
 
-local textBox = Instance.new("TextBox", frame)
-textBox.Size = UDim2.new(1, -10, 1, -50)
-textBox.Position = UDim2.new(0, 5, 0, 40)
-textBox.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-textBox.BackgroundTransparency = 0.3
-textBox.TextColor3 = Color3.fromRGB(200, 255, 200)
-textBox.TextSize = 12
-textBox.Font = Enum.Font.Code
-textBox.Text = "Yukleniyor..."
-textBox.TextXAlignment = Enum.TextXAlignment.Left
-textBox.TextYAlignment = Enum.TextYAlignment.Top
-textBox.MultiLine = true
-textBox.ClearTextOnFocus = false
-textBox.BorderSizePixel = 0
-Instance.new("UICorner", textBox).CornerRadius = UDim.new(0, 8)
+local function isAlive(plr)
+    local char = getCharacter(plr)
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0 or false
+end
 
--- PlayerModule kontrolü
-local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
-local hasPlayerModule = PlayerScripts:FindFirstChild("PlayerModule") ~= nil
+-- ===== GELİŞMİŞ TAKIM TESPİTİ =====
+local function getPlayerTeam(plr)
+    if plr.Team then return tostring(plr.Team) end
+    if plr.TeamColor then return tostring(plr.TeamColor) end
+    local attr = plr:GetAttribute("Team")
+    if attr then return tostring(attr) end
+    return nil
+end
 
--- Güncelleme
+local function isSameTeam(plr)
+    local myTeam = getPlayerTeam(LocalPlayer)
+    local plrTeam = getPlayerTeam(plr)
+    if myTeam and plrTeam then
+        return myTeam == plrTeam
+    end
+    return false -- Takım bilgisi yoksa rakip kabul et
+end
+
+-- ===== SADECE RAKİP OYUNCUYU BUL =====
+local function findClosestEnemy()
+    local myChar = LocalPlayer.Character
+    if not myChar then return nil end
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return nil end
+
+    local closest, closestDist = nil, math.huge
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then continue end
+        if not isAlive(plr) then continue end
+        if isSameTeam(plr) then continue end -- Takım arkadaşlarını atla
+        
+        local hrp = getHumanoidRootPart(plr)
+        if not hrp then continue end
+        local dist = (myHrp.Position - hrp.Position).Magnitude
+        if dist < closestDist then
+            closestDist = dist
+            closest = plr
+        end
+    end
+    return closest
+end
+
+local function lockOntoTarget(targetPlayer)
+    if not targetPlayer then return end
+    local targetChar = getCharacter(targetPlayer)
+    if not targetChar then return end
+    local targetHrp = getHumanoidRootPart(targetPlayer)
+    if not targetHrp then return end
+    
+    local myChar = LocalPlayer.Character
+    if not myChar then return end
+    local myHrp = myChar:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return end
+    
+    local targetPos = targetHrp.Position
+    local myPos = myHrp.Position
+    local dist = (targetPos - myPos).Magnitude
+    
+    local camDistance = 14
+    local heightOffset = 12
+    
+    local dir = (targetPos - myPos).Unit
+    local lookTarget = targetPos + Vector3.new(0, 1.5, 0)
+    local camPos = myPos - dir * camDistance + Vector3.new(0, heightOffset, 0)
+    
+    if camPos == camPos and lookTarget == lookTarget then
+        Camera.CFrame = CFrame.lookAt(camPos, lookTarget)
+    end
+end
+
+local function createLockCircle()
+    if lockCircle then
+        pcall(function() lockCircle:Remove() end)
+        lockCircle = nil
+    end
+    lockCircle = Drawing.new("Circle")
+    if lockCircle then
+        lockCircle.Thickness = 3
+        lockCircle.NumSides = 32
+        lockCircle.Filled = false
+        lockCircle.Color = Color3.fromRGB(0, 180, 255)
+        lockCircle.Transparency = 0.8
+        lockCircle.Radius = 30
+        lockCircle.Visible = false
+        lockCircle.Position = Vector2.new(0, 0)
+    end
+    return lockCircle
+end
+
+local function updateLockCircle()
+    if not aimbotEnabled or not lockTarget then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local char = getCharacter(lockTarget)
+    if not char then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local hrp = getHumanoidRootPart(lockTarget)
+    if not hrp then
+        if lockCircle then lockCircle.Visible = false end
+        return
+    end
+    local pos = hrp.Position + Vector3.new(0, 2, 0)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
+    if onScreen and lockCircle then
+        lockCircle.Visible = true
+        lockCircle.Position = Vector2.new(screenPos.X, screenPos.Y)
+    else
+        if lockCircle then lockCircle.Visible = false end
+    end
+end
+
+local function createToggleButton()
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "AimbotToggle"
+    gui.ResetOnSpawn = false
+
+    local btn = Instance.new("ImageButton", gui)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(0, 20, 0.42, -40)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    btn.BackgroundTransparency = 0.1
+    btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local outerRing = Instance.new("Frame", btn)
+    outerRing.Size = UDim2.new(1, 0, 1, 0)
+    outerRing.Position = UDim2.new(0, 0, 0, 0)
+    outerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    outerRing.BackgroundTransparency = 0.8
+    outerRing.BorderSizePixel = 3
+    outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", outerRing).CornerRadius = UDim.new(1, 0)
+
+    local innerRing = Instance.new("Frame", btn)
+    innerRing.Size = UDim2.new(0, 55, 0, 55)
+    innerRing.Position = UDim2.new(0.5, -27.5, 0.5, -27.5)
+    innerRing.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    innerRing.BackgroundTransparency = 0.9
+    innerRing.BorderSizePixel = 2
+    innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", innerRing).CornerRadius = UDim.new(1, 0)
+
+    local hLine = Instance.new("Frame", btn)
+    hLine.Size = UDim2.new(0, 28, 0, 2)
+    hLine.Position = UDim2.new(0.5, -14, 0.5, -1)
+    hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    hLine.BorderSizePixel = 0
+
+    local vLine = Instance.new("Frame", btn)
+    vLine.Size = UDim2.new(0, 2, 0, 28)
+    vLine.Position = UDim2.new(0.5, -1, 0.5, -14)
+    vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    vLine.BorderSizePixel = 0
+
+    local statusDot = Instance.new("Frame", btn)
+    statusDot.Size = UDim2.new(0, 18, 0, 18)
+    statusDot.Position = UDim2.new(0.5, -9, 0.5, -9)
+    statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    statusDot.BorderSizePixel = 0
+    Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+
+    local statusText = Instance.new("TextLabel", btn)
+    statusText.Size = UDim2.new(1, 0, 0, 20)
+    statusText.Position = UDim2.new(0, 0, 1, -15)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "OFF"
+    statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+    statusText.TextSize = 13
+    statusText.Font = Enum.Font.SourceSansBold
+
+    local function updateButton()
+        if aimbotEnabled then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+            outerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            innerRing.BorderColor3 = Color3.fromRGB(0, 255, 0)
+            statusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            statusText.Text = "ON"
+            statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+            hLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            vLine.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            outerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            innerRing.BorderColor3 = Color3.fromRGB(255, 255, 255)
+            statusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            statusText.Text = "OFF"
+            statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+            hLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            vLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        end
+    end
+
+    btn.Activated:Connect(function()
+        aimbotEnabled = not aimbotEnabled
+        if aimbotEnabled then
+            lockTarget = findClosestEnemy() -- Artık sadece rakip arıyor
+        else
+            lockTarget = nil
+            if lockCircle then lockCircle.Visible = false end
+        end
+        updateButton()
+    end)
+
+    updateButton()
+    return btn
+end
+
+local function mainLoop()
+    if aimbotEnabled then
+        -- Hedef yoksa, öldüyse veya takım arkadaşıysa yeni rakip bul
+        if not lockTarget or not isAlive(lockTarget) or isSameTeam(lockTarget) then
+            lockTarget = findClosestEnemy()
+            if not lockTarget then
+                if lockCircle then lockCircle.Visible = false end
+                return
+            end
+        end
+        lockOntoTarget(lockTarget)
+    end
+    updateLockCircle()
+end
+
+createLockCircle()
+createToggleButton()
+
 RunService.RenderStepped:Connect(function()
-    local lines = {}
-    table.insert(lines, "CameraType: " .. tostring(Camera.CameraType))
-    table.insert(lines, "CameraSubject: " .. (Camera.CameraSubject and Camera.CameraSubject.Name or "nil"))
-    table.insert(lines, "CameraMode: " .. tostring(LocalPlayer.CameraMode))
-    table.insert(lines, "FieldOfView: " .. tostring(Camera.FieldOfView))
-    table.insert(lines, "PlayerModule: " .. tostring(hasPlayerModule))
-    
-    local look = Camera.CFrame.LookVector
-    table.insert(lines, "LookVector: " .. string.format("%.2f, %.2f, %.2f", look.X, look.Y, look.Z))
-    
-    local rotY = math.deg(math.atan2(look.X, look.Z))
-    table.insert(lines, "Kamera Y-Acisi: " .. string.format("%.1f°", rotY))
-    
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        table.insert(lines, "Humanoid AutoRotate: " .. tostring(hum.AutoRotate))
-    end
-    
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local hrpLook = hrp.CFrame.LookVector
-        local hrpRotY = math.deg(math.atan2(hrpLook.X, hrpLook.Z))
-        table.insert(lines, "Karakter Y-Acisi: " .. string.format("%.1f°", hrpRotY))
-    end
-    
-    textBox.Text = table.concat(lines, "\n")
+    pcall(mainLoop)
 end)
 
--- Kapatma
-local closeBtn = Instance.new("TextButton", frame)
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 2)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.TextSize = 14
-closeBtn.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
-closeBtn.Activated:Connect(function() frame.Visible = false end)
-
--- Açma butonu
-local openBtn = Instance.new("TextButton", gui)
-openBtn.Size = UDim2.new(0, 50, 0, 50)
-openBtn.Position = UDim2.new(1, -60, 0, 10)
-openBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-openBtn.Text = "🔍"
-openBtn.TextColor3 = Color3.new(1, 1, 1)
-openBtn.TextSize = 20
-openBtn.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", openBtn).CornerRadius = UDim.new(1, 0)
-openBtn.Activated:Connect(function() frame.Visible = not frame.Visible end)
-
-print("✅ KAMERA DEBUG PANELI YUKLENDI!")
+print("KABILELER 3v3 AIMBOT YUKLENDI!")
+print("Sadece rakip takim hedef alinir, takim arkadaslari atlanir.")
